@@ -15,8 +15,6 @@ UFO_Motors motors;
 // RxDataHandler rxDH;
 UFO_PDOA test_cls;
 
-UFO_ESC_driver ESCdriver;
-
 void setup()
 {
     delay(100);
@@ -57,8 +55,7 @@ void setup()
             Serial.println(address);
         }
     }
-    uint8_t pins[] = {13,14,26,27};
-    ESCdriver.Setup(pins, 4);
+    // uint8_t pins[] = {13,14,26,27};
 
     // rxDH.Addhandler([&](RX_INDEX i, int32_t v)
     //                 {
@@ -76,10 +73,6 @@ void setup()
     //     break;
     // } });
 
-    // WiFi.softAP(GTD_WIFI_OWN_NAME, GTD_WIFI_OWN_PASS, 1, 0, 1);
-    // WiFi.softAPConfig(GTD_WIFI_local_ip, GTD_WIFI_local_ip, IPAddress(255, 255, 255, 0));
-    // delay(100);
-    // Serial.println(WiFi.softAPIP());
 
     // if (!udp.listen(8080))
     // {
@@ -97,80 +90,46 @@ void setup()
     delay(100);
 
     motors.Begin();
-    motors.Arm();
 }
 void loop()
 {
-    // if (Serial.available() > 1)
-    // {
-    //     char key = Serial.read();
-    //     int val = Serial.parseInt();
-    //     switch (key)
-    //     {
-    //     case 'V':
-    //         motors.SendAll(val);
-    //         break;
-    //     case 'A':
-    //         motors.Arm();
-    //         digitalWrite(4, 1);
-    //         digitalWrite(2, 1);
-    //         break;
-    //     case 'D':
-    //         motors.DisArm();
-    //         digitalWrite(4, 0);
-    //         digitalWrite(2, 0);
-    //         break;
-    //     case '0':
-    //         motors.Send(UFO_MOTOR_CHANEL_FRONT_LEFT, val);
-    //         break;
-    //     case '1':
-    //         motors.Send(UFO_MOTOR_CHANEL_BACK_RIGHT, val);
-    //         break;
-    //     case '2':
-    //         motors.Send(UFO_MOTOR_CHANEL_FRONT_RIGHT, val);
-    //         break;
-    //     case '3':
-    //         motors.Send(UFO_MOTOR_CHANEL_BACK_LEFT, val);
-    //         break;
-    //     default:
-    //         break;
-    //     }
-    // }
-
     if (Serial.available() > 1)
     {
         char key = Serial.read();
         int val = Serial.parseInt();
-
-        val = constrain(val, UFO_MOTOR_VAL_MIN, UFO_MOTOR_VAL_MAX);
-        val = map(val, UFO_MOTOR_VAL_MIN, UFO_MOTOR_VAL_MAX, UFO_MOTOR_RES_VAL_MIN, UFO_MOTOR_RES_VAL_MAX);
         switch (key)
         {
+        case 'V':
+            motors.SendAll(val);
+            break;
+        case 'A':
+            motors.Arm();
+            digitalWrite(4, 1);
+            digitalWrite(2, 1);
+            break;
+        case 'D':
+            motors.DisArm();
+            digitalWrite(4, 0);
+            digitalWrite(2, 0);
+            break;
         case '0':
-            Serial.print("0 ");
-            Serial.println(val);
-            ESCdriver.Write(0, val);
+            motors.Send(0, val);
             break;
         case '1':
-            Serial.print("1 ");
-            Serial.println(val);
-            ESCdriver.Write(1, val);
+            motors.Send(1, val);
             break;
         case '2':
-            Serial.print("2 ");
-            Serial.println(val);
-            // ESCdriver.Write(2, val);
-            motors.Send(UFO_MOTOR_CHANEL_BACK_LEFT, val);
+            motors.Send(2, val);
             break;
         case '3':
-            Serial.print("3 ");
-            Serial.println(val);
-            ESCdriver.Write(3, val);
+            motors.Send(3, val);
             break;
         default:
             break;
         }
     }
+
+   
     // if (Serial.available() > 1)
     // {
     //     char key = Serial.read();
