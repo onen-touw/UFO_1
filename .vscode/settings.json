@@ -55,6 +55,9 @@
         "stdexcept": "cpp",
         "streambuf": "cpp",
         "cinttypes": "cpp",
-        "typeinfo": "cpp"
+        "typeinfo": "cpp",
+        "pins_arduino.h": "c",
+        "esp32-hal.h": "c",
+        "soc_caps.h": "c"
     }
 }
