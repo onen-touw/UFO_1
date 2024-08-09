@@ -4,17 +4,19 @@
 #include "RxTxDataHandler.h"
 #include "UFO_Tasks/UFO_Task.h"
 #include "Adafruit_BME280.h"
-
-#include "UFO_Motors.h"
-// #include "UFO_Control.h"
+#include "UFO_Driver/UFO_ESC.h"
+// #include "UFO_Motors.h"
+#include "UFO_Control.h"
 #include "UFO_Communication.h"
 
-// UFO_Control control;
+UFO_Control control;
 UFO_Motors motors;
 // AsyncUDP udp;
 // RxDataHandler rxDH;
 UFO_PDOA test_cls;
-// DShotRMT motor01(MOTOR01_PIN, RMT_CHANNEL_0);
+
+UFO_ESC_driver ESCdriver;
+
 void setup()
 {
     delay(100);
@@ -38,13 +40,10 @@ void setup()
     }
     
     Serial.println();
-    motors.Begin();
-
+    
     delay(100);
-    // control.Setup();
-    // if (motor01.begin(DSHOT300, true) != ESP_OK){
-    //     Serial.println("mamam");
-    // };
+    control.Setup();
+
     delay(100);
 
     for (int32_t address = 1; address < 127; address++)
@@ -58,6 +57,8 @@ void setup()
             Serial.println(address);
         }
     }
+    uint8_t pins[] = {13,14,26,27};
+    ESCdriver.Setup(pins, 4);
 
     // rxDH.Addhandler([&](RX_INDEX i, int32_t v)
     //                 {
@@ -93,49 +94,105 @@ void setup()
     // UFO_CreateTask(UFO_TASKS_ID::TASK_IMU);
     delay(100);
     // UFO_CreateTask(UFO_TASKS_ID::TASK_BME);
-    pinMode(4, OUTPUT);
-    pinMode(2, OUTPUT);
+    delay(100);
 
-
+    motors.Begin();
+    motors.Arm();
 }
-int dval = 48;
 void loop()
 {
+    // if (Serial.available() > 1)
+    // {
+    //     char key = Serial.read();
+    //     int val = Serial.parseInt();
+    //     switch (key)
+    //     {
+    //     case 'V':
+    //         motors.SendAll(val);
+    //         break;
+    //     case 'A':
+    //         motors.Arm();
+    //         digitalWrite(4, 1);
+    //         digitalWrite(2, 1);
+    //         break;
+    //     case 'D':
+    //         motors.DisArm();
+    //         digitalWrite(4, 0);
+    //         digitalWrite(2, 0);
+    //         break;
+    //     case '0':
+    //         motors.Send(UFO_MOTOR_CHANEL_FRONT_LEFT, val);
+    //         break;
+    //     case '1':
+    //         motors.Send(UFO_MOTOR_CHANEL_BACK_RIGHT, val);
+    //         break;
+    //     case '2':
+    //         motors.Send(UFO_MOTOR_CHANEL_FRONT_RIGHT, val);
+    //         break;
+    //     case '3':
+    //         motors.Send(UFO_MOTOR_CHANEL_BACK_LEFT, val);
+    //         break;
+    //     default:
+    //         break;
+    //     }
+    // }
+
     if (Serial.available() > 1)
     {
         char key = Serial.read();
         int val = Serial.parseInt();
+
+        val = constrain(val, UFO_MOTOR_VAL_MIN, UFO_MOTOR_VAL_MAX);
+        val = map(val, UFO_MOTOR_VAL_MIN, UFO_MOTOR_VAL_MAX, UFO_MOTOR_RES_VAL_MIN, UFO_MOTOR_RES_VAL_MAX);
         switch (key)
         {
-        case 'V':
-            motors.SendAll(val);
-            break;
-        case 'A':
-            motors.Arm();
-            digitalWrite(4, 1);
-            digitalWrite(2, 1);
-            break;
-        case 'D':
-            motors.DisArm();
-            digitalWrite(4, 0);
-            digitalWrite(2, 0);
-            break;
         case '0':
-            motors.Send(UFO_MOTOR_CHANEL_FRONT_LEFT, val);
+            Serial.print("0 ");
+            Serial.println(val);
+            ESCdriver.Write(0, val);
             break;
         case '1':
-            motors.Send(UFO_MOTOR_CHANEL_BACK_RIGHT, val);
+            Serial.print("1 ");
+            Serial.println(val);
+            ESCdriver.Write(1, val);
             break;
         case '2':
-            motors.Send(UFO_MOTOR_CHANEL_FRONT_RIGHT, val);
+            Serial.print("2 ");
+            Serial.println(val);
+            // ESCdriver.Write(2, val);
+            motors.Send(UFO_MOTOR_CHANEL_BACK_LEFT, val);
             break;
         case '3':
-            motors.Send(UFO_MOTOR_CHANEL_BACK_LEFT, val);
+            Serial.print("3 ");
+            Serial.println(val);
+            ESCdriver.Write(3, val);
             break;
         default:
             break;
         }
     }
+    // if (Serial.available() > 1)
+    // {
+    //     char key = Serial.read();
+    //     int val = Serial.parseInt();
+    //     switch (key)
+    //     {
+    //     case 'V':
+    //         control.SetTargetTrust(val);
+    //         break;
+    //     case 'A':
+    //         control.SetArm(1);
+    //         break;
+    //     case 'D':
+    //         control.SetArm(1);
+    //         break;
+    //     default:
+    //         break;
+    //     }
+    // }
+    // control.Iteration();
+
+
     // motor01.send_dshot_value(dval);
     // control.Iteration();
 }

@@ -10,12 +10,12 @@
 class UFO_Control : public UFO_TaskClassBase
 {
 private:
-    UFO_PID _rollPid = UFO_PID(0.2,  0.05, 0.2, 0.001);
-    UFO_PID _pitchPid = UFO_PID(0.2,  0.05, 0.2, 0.001);
-    int16_t _targetRollAngle = 0;
-    int16_t _targetPitchAngle = 0;
+    UFO_PID _rollPid = UFO_PID(0.02,  0.01, 0.2, 0.05);
+    UFO_PID _pitchPid = UFO_PID(0.02,  0.01, 0.2, 0.05);
 
-    int16_t _trustTarget = 0;       //from RC
+    float _targetRollAngle = 0;  // from rc  [-30 30]    or less
+    float _targetPitchAngle = 0;    // from rc  [-30 30]    or less
+    int16_t _trustTarget = 0;       //from RC   [1000 2000]
 
     UFO_Motors _motors;
 
@@ -34,18 +34,24 @@ public:
             return;
         }
         
-        int16_t roll = _rollPid.Calculate(_targetRollAngle, UFO_IMUData.Roll);
-        int16_t pitch = _pitchPid.Calculate(_targetPitchAngle, UFO_IMUData.Pitch);
+        double roll = _rollPid.Calculate(_targetRollAngle, UFO_IMUData.Roll);          //maybe pids need in scale factor
+        double pitch = _pitchPid.Calculate(_targetPitchAngle, UFO_IMUData.Pitch);
+
         _motors.Send(UFO_MOTOR_CHANEL_FRONT_LEFT, _trustTarget + roll+ pitch);  
         _motors.Send(UFO_MOTOR_CHANEL_FRONT_RIGHT, _trustTarget - roll+ pitch);  
         _motors.Send(UFO_MOTOR_CHANEL_BACK_LEFT, _trustTarget + roll - pitch);
         _motors.Send(UFO_MOTOR_CHANEL_BACK_RIGHT, _trustTarget - roll - pitch);
-        _motors.Debug();
-        Serial.print("roll: ");
-        Serial.print(roll);
-        Serial.print(";\tpitch: ");
 
+        _motors.Debug();
+        Serial.print(">PID pitch:");
         Serial.println(pitch);
+
+        Serial.print(">PID roll:");
+        Serial.println(roll);
+        Serial.print(">Angle pitch:");
+        Serial.println(UFO_IMUData.Pitch* 180 / M_PI);
+        Serial.print(">Angle roll:");
+        Serial.println(UFO_IMUData.Roll* 180 / M_PI);
     }
 
     void SetTargetTrust(int16_t tr){
