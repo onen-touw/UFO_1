@@ -2,6 +2,7 @@
 
 #include "UFO_TaskMinimal.h"
 #include "../UFO_WiFi.h"
+#include "AsyncUDP.h"
 #include "../UFO_Config.h"
 
 RxDataHandler rxDH;

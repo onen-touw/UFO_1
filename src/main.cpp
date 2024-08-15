@@ -1,61 +1,95 @@
 #include <Arduino.h>
-#include "WiFi.h"
-#include "AsyncUDP.h"
+// #include "WiFi.h"
+// #include "AsyncUDP.h"
 #include "RxTxDataHandler.h"
 #include "UFO_Tasks/UFO_Task.h"
-#include "Adafruit_BME280.h"
+
+
 #include "UFO_Driver/UFO_ESC.h"
 // #include "UFO_Motors.h"
 #include "UFO_Control.h"
-#include "UFO_Communication.h"
-
+#include "UFO_Sensors/UFO_Sensors_I2C/UFO_Baro.h"
+#include "UFO_Sensors/UFO_Sensors_I2C/UFO_IMU.h"
+#include"UFO_math/Madgwick.h"
 UFO_Control control;
 UFO_Motors motors;
 // AsyncUDP udp;
 // RxDataHandler rxDH;
-UFO_PDOA test_cls;
+// UFO_PDOA test_cls;
+
+UFO_I2C_Driver driver;
+// // UFO_Baro baro(&driver);
+// UFO_IMU imu(&driver);
+
+// Madgwick filter;
+// // UFO_BaroData_t baroData;
+// UFO_IMU_Data imuData;
 
 void setup()
 {
     delay(100);
     Serial.begin(115200);
-    Wire.begin();
-    Wire.setClock(400000); //400khz clock
 
-    test_cls.CreateItem(123);
-    test_cls.CreateItem(0.213f);
-    test_cls.CreateItem(true);
-    String txt = "string";
-    test_cls.CreateItem(txt);  
-    test_cls.CreatePacket();
-    String packet = test_cls.GetPacket();
-    for (size_t i = 0; i < packet.length(); i++)
-    {
-        Serial.print(static_cast<uint8_t>(packet[i]));
-        Serial.print("\t|");
-        Serial.print(packet[i]);
-        Serial.println("|");
-    }
+    // Wire.begin();
+    // Wire.setClock(400000); //400khz clock
+
+    esp_err_t err = driver.Init(UFO_I2C_port::UFO_I2C_HARDWARE);
+    Serial.println(err);
+    Serial.print("inited ");
+    Serial.println(driver.Initialized());
+    // // baro.InitSensor();
+    // Serial.println("Keep IMU level.");
+    // delay(500);
+    // imu.Calibrate();
+    // UFO_IMU_CalibrationData dt = imu.GetOffsets();
+    // Serial.println("Calibration done!");
+    // Serial.println("Accel biases X/Y/Z: ");
+    // Serial.print(dt._accelOffset._x);
+    // Serial.print(", ");
+    // Serial.print(dt._accelOffset._y);
+    // Serial.print(", ");
+    // Serial.println(dt._accelOffset._z);
+    // Serial.println("Gyro biases X/Y/Z: ");
+    // Serial.print(dt._gyroOffset._x);
+    // Serial.print(", ");
+    // Serial.print(dt._accelOffset._y);
+    // Serial.print(", ");
+    // Serial.println(dt._accelOffset._z);
+    // delay(5000);
+    // imu.InitSensor();
     
-    Serial.println();
+    // delay(200);
+    // filter.begin(0.2f);
+
+    // test_cls.CreateItem(123);
+    // test_cls.CreateItem(0.213f);
+    // test_cls.CreateItem(true);
+    // String txt = "string";
+    // test_cls.CreateItem(txt);  
+    // test_cls.CreatePacket();
+    // String packet = test_cls.GetPacket();
+    // for (size_t i = 0; i < packet.length(); i++)
+    // {
+    //     Serial.print(static_cast<uint8_t>(packet[i]));
+    //     Serial.print("\t|");
+    //     Serial.print(packet[i]);
+    //     Serial.println("|");
+    // }
+    // Serial.println();
+
+
+
     
     delay(100);
-    control.Setup();
-
+    // control.Setup();
     delay(100);
-
-    for (int32_t address = 1; address < 127; address++)
+    for (uint8_t address = 1; address < 127; ++address)
     {
-        Wire.beginTransmission(address);
-        uint8_t error = Wire.endTransmission();
-        if (error == 0)
+        if (!driver.ZeroWrite(address))
         {
-            Serial.print("\tfound:");
-            Serial.print(" ");
-            Serial.println(address);
+            Serial.printf("Found on adress: %d (dec); 0x%x (hex)\n" , address, address);
         }
     }
-    // uint8_t pins[] = {13,14,26,27};
 
     // rxDH.Addhandler([&](RX_INDEX i, int32_t v)
     //                 {
@@ -84,7 +118,7 @@ void setup()
     Serial.println("Start");
     // UFO_CreateTask(UFO_TASKS_ID::TASK_WIFI_HANDL);
     delay(100);
-    // UFO_CreateTask(UFO_TASKS_ID::TASK_IMU);
+    UFO_CreateTask(UFO_TASKS_ID::TASK_IMU, &driver);
     delay(100);
     // UFO_CreateTask(UFO_TASKS_ID::TASK_BME);
     delay(100);
@@ -93,43 +127,6 @@ void setup()
 }
 void loop()
 {
-    if (Serial.available() > 1)
-    {
-        char key = Serial.read();
-        int val = Serial.parseInt();
-        switch (key)
-        {
-        case 'V':
-            motors.SendAll(val);
-            break;
-        case 'A':
-            motors.Arm();
-            digitalWrite(4, 1);
-            digitalWrite(2, 1);
-            break;
-        case 'D':
-            motors.DisArm();
-            digitalWrite(4, 0);
-            digitalWrite(2, 0);
-            break;
-        case '0':
-            motors.Send(0, val);
-            break;
-        case '1':
-            motors.Send(1, val);
-            break;
-        case '2':
-            motors.Send(2, val);
-            break;
-        case '3':
-            motors.Send(3, val);
-            break;
-        default:
-            break;
-        }
-    }
-
-   
     // if (Serial.available() > 1)
     // {
     //     char key = Serial.read();
@@ -137,23 +134,73 @@ void loop()
     //     switch (key)
     //     {
     //     case 'V':
-    //         control.SetTargetTrust(val);
+    //         motors.SendAll(val);
     //         break;
     //     case 'A':
-    //         control.SetArm(1);
+    //         motors.Arm();
+    //         digitalWrite(4, 1);
+    //         digitalWrite(2, 1);
     //         break;
     //     case 'D':
-    //         control.SetArm(1);
+    //         motors.DisArm();
+    //         digitalWrite(4, 0);
+    //         digitalWrite(2, 0);
+    //         break;
+    //     case '0':
+    //         motors.Send(0, val);
+    //         break;
+    //     case '1':
+    //         motors.Send(1, val);
+    //         break;
+    //     case '2':
+    //         motors.Send(2, val);
+    //         break;
+    //     case '3':
+    //         motors.Send(3, val);
     //         break;
     //     default:
     //         break;
     //     }
     // }
-    // control.Iteration();
 
+    // baro();
+    // // baroData = baro.Get();
+    //     // Serial.print(baroData.Tempreture);
+    // // Serial.print('\t');
+    // // Serial.print(baroData.Presure);
+    // // Serial.print('\t');
+    // // Serial.print(baroData.Altitude);
+    // // Serial.println("================");
 
-    // motor01.send_dshot_value(dval);
-    // control.Iteration();
+    
+    
+    // imu();
+    // imuData = imu.Get();
+    // filter.updateIMU(
+    //     imuData._gyro._x,
+    //     imuData._gyro._y,
+    //     imuData._gyro._z,
+    //     imuData._accel._x,
+    //     imuData._accel._y,
+    //     imuData._accel._z
+    //     );
+    // float
+    //     q0 = filter.getQuatW(),
+    //     q1 = filter.getQuatX(),
+    //     q2 = filter.getQuatY(),
+    //     q3 = filter.getQuatZ();
+    // float roll = atan2(0.5f - q1 * q1 - q2 * q2, q0 * q1 + q2 * q3);
+    // float pitch = asinf(-2.0f * (q1 * q3 - q0 * q2));
+    // float yaw = atan2f(q1 * q2 + q0 * q3, 0.5f - q2 * q2 - q3 * q3);
+
+    // // delay(10);
+    // Serial.print(">yaw:");
+    // Serial.println(yaw * 180 / M_PI);
+    // Serial.print(">pitch:");
+    // Serial.println(pitch * 180 / M_PI);
+    // Serial.print(">roll:");
+    // Serial.println(roll * 180 / M_PI);
+    // delay(20);
 }
 
 // #include <QMC5883LCompass.h>
