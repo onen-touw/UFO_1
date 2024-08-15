@@ -37,10 +37,10 @@ public:
         double roll = _rollPid.Calculate(_targetRollAngle, UFO_IMUData.Roll);          //maybe pids need in scale factor
         double pitch = _pitchPid.Calculate(_targetPitchAngle, UFO_IMUData.Pitch);
 
-        _motors.Send(UFO_MOTOR_CHANEL_FRONT_LEFT, _trustTarget + roll+ pitch);  
-        _motors.Send(UFO_MOTOR_CHANEL_FRONT_RIGHT, _trustTarget - roll+ pitch);  
-        _motors.Send(UFO_MOTOR_CHANEL_BACK_LEFT, _trustTarget + roll - pitch);
-        _motors.Send(UFO_MOTOR_CHANEL_BACK_RIGHT, _trustTarget - roll - pitch);
+        // _motors.Send(UFO_MOTOR_CHANEL_FRONT_LEFT, _trustTarget + roll+ pitch);  
+        // _motors.Send(UFO_MOTOR_CHANEL_FRONT_RIGHT, _trustTarget - roll+ pitch);  
+        // _motors.Send(UFO_MOTOR_CHANEL_BACK_LEFT, _trustTarget + roll - pitch);
+        // _motors.Send(UFO_MOTOR_CHANEL_BACK_RIGHT, _trustTarget - roll - pitch);
 
         _motors.Debug();
         Serial.print(">PID pitch:");
