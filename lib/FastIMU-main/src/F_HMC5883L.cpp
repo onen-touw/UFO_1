@@ -106,11 +106,11 @@ void HMC5883L::getMag(MagData* out)
 void HMC5883L::calibrateMag(calData* cal) 
 {
 	// setup sensor. 75hz odr, normal mode, 8 samples
-	writeByte(IMUAddress, HMC5883L_CFGA, 0x78);
+	writeByte(IMUAddress, HMC5883L_CFGA, 0b1111000);	// 0x78 120
 	delay(1);
 	// +- 8100uT
-	writeByte(IMUAddress, HMC5883L_CFGB, 0xE0);
-	delay(1);
+	writeByte(IMUAddress, HMC5883L_CFGB, 0b11100000);			//0xe0 224
+	delay(1); 
 	// cont mode.
 	writeByte(IMUAddress, HMC5883L_MODE, 0x00);
 	delay(1);

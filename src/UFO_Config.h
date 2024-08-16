@@ -1,9 +1,9 @@
 #pragma once
 
 #include "Arduino.h"
-#include "Wire.h"
 
-
+#define UFO_DISABLE 0
+#define UFO_ENABLE 1
 
 // #define USING_OTA
 // #define USING_WIFI

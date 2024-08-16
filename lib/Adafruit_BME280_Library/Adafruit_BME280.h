@@ -169,7 +169,7 @@ public:
 	// constructors
 	Adafruit_BME280();
 	~Adafruit_BME280(void);
-	bool begin(uint8_t addr = BME280_ADDRESS, TwoWire *theWire = &Wire);
+	bool begin(uint8_t addr = UFO_BME280_ADDRESS, TwoWire *theWire = &Wire);
 	bool init();
 
 	void setSampling(sensor_mode mode = MODE_NORMAL,
