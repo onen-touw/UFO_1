@@ -4,22 +4,12 @@
 #include "../../UFO_Driver/UFO_I2C_Interface.h"
 #include "../../UFO_math/UFO_MathUtils.h"
 
-
 #define UFO_IMU_ENABLE_TEMRETURE_MODULE     UFO_DISABLE 
 #define UFO_IMU_CASTOM_POSITION             UFO_DISABLE
 #define UFO_IMU_ADVANCED_CALIBRATION        UFO_DISABLE /*UFO_ENABLE */ 
 
 #if UFO_IMU_CASTOM_POSITION // see /docks/imu_directions.png
-enum UFO_IMU_Position :uint8_t{
-    IMU_DIR_BASIC = 0,
-    IMU_DIR_Z_ROT_90,       // axis: z ... direction: counterclockwise
-    IMU_DIR_Z_ROT_180,      // axis: z ... direction: counterclockwise
-    IMU_DIR_Z_ROT_270,      // axis: z ... direction: counterclockwise
-    IMU_DIR_Y_ROT90_Z_ROT180 = 4,   // axis: y ... direction: clockwise; -> axis: z ... direction: counterclockwise  
-    IMU_DIR_Y_ROT90_Z_ROT90 = 5,    // axis: y ... direction: clockwise; -> axis: z ... direction: counterclockwise  
-    IMU_DIR_Y_ROT90 = 6,            // axis: y ... direction: clockwise; -> axis: z ... direction: counterclockwise  
-    IMU_DIR_Y_ROT90_Z_ROT270 = 7,   // axis: y ... direction: clockwise; -> axis: z ... direction: counterclockwise  
-};
+#include "UFO_SensorPosition.h"
 #endif
 
 #define MPU6050_SELF_TEST_X_ACCEL 0x0D
@@ -123,9 +113,8 @@ private:
         _gyroRange = 2000.0 / 32768.0;		
     UFO_IMU_CalibrationData _calibration;
     UFO_IMU_Data _data;
-    float _temperature = 0;
     #if UFO_IMU_CASTOM_POSITION
-    UFO_IMU_Position _position = IMU_DIR_BASIC;
+    UFO_SensorPosition _position = IMU_DIR_BASIC;
     #endif
 
 public:
@@ -150,6 +139,10 @@ public:
         if (sensorID != MPU6050_WHOAMI_DEFAULT_VALUE)
         {
             // log warning
+            Serial.print("UFO_IMU: Sensor's id is incorrect: should be ");
+            Serial.print(MPU6050_WHOAMI_DEFAULT_VALUE);
+            Serial.print(", your id is ");
+            Serial.println(sensorID);
         }
 
         // reset device
@@ -223,51 +216,15 @@ public:
         this->Write8(MPU6050_GYRO_CONFIG, static_cast<uint8_t>(range) << 3); // Write new GYRO_CONFIG register value
     }
 
-    bool dataAvailable() { return (this->Read8(MPU6050_INT_STATUS) & 0x01); }
+    bool DataAvailable() { return (this->Read8(MPU6050_INT_STATUS) & 0x01); }
     void Update()
     {
-        if (!dataAvailable()){
+        if (!DataAvailable()){
             return;
         }
         uint8_t rawData[14]= {0}; // x/y/z accel register data stored here
         this->Read(MPU6050_ACCEL_XOUT_H, &rawData[0], 14);
         __RawToReal(rawData);
-        // if (!dataAvailable())
-        //     return;
-
-        // int16_t IMUCount[7]; // used to read all 14 bytes at once from the MPU6050 accel/gyro
-        // uint8_t rawData[14]; // x/y/z accel register data stored here
-
-        // this->Read(MPU6050_ACCEL_XOUT_H, &rawData[0], 14); // Read the 14 raw data registers into data array
-
-        // IMUCount[0] = ((int16_t)rawData[0] << 8) | rawData[1]; // Turn the MSB and LSB into a signed 16-bit value
-        // IMUCount[1] = ((int16_t)rawData[2] << 8) | rawData[3];
-        // IMUCount[2] = ((int16_t)rawData[4] << 8) | rawData[5];
-        // IMUCount[3] = ((int16_t)rawData[6] << 8) | rawData[7];
-        // IMUCount[4] = ((int16_t)rawData[8] << 8) | rawData[9];
-        // IMUCount[5] = ((int16_t)rawData[10] << 8) | rawData[11];
-        // IMUCount[6] = ((int16_t)rawData[12] << 8) | rawData[13];
-
-        // float ax, ay, az, gx, gy, gz;
-
-        // // Calculate the accel value into actual g's per second
-        // ax = (float)IMUCount[0] * _accelRange - _calibration._accelOffset._x;
-        // ay = (float)IMUCount[1] * _accelRange - _calibration._accelOffset._y;
-        // az = (float)IMUCount[2] * _accelRange - _calibration._accelOffset._z;
-
-        // // Calculate the temperature value into actual deg c
-        // _temperature = (((float)IMUCount[3] / 340.f) + 36.53f);
-
-        // // Calculate the gyro value into actual degrees per second
-        // gx = (float)IMUCount[4] * _gyroRange - _calibration._gyroOffset._x;
-        // gy = (float)IMUCount[5] * _gyroRange - _calibration._gyroOffset._y;
-        // gz = (float)IMUCount[6] * _gyroRange - _calibration._gyroOffset._z;
-        // _data._accel._x = ax;
-        // _data._accel._y = ay;
-        // _data._accel._z = az;
-        // _data._gyro._x = gx;
-        // _data._gyro._y = gy;
-        // _data._gyro._z = gz;
     }
 
     void operator()(){
@@ -414,7 +371,7 @@ public:
         return _calibration;
     }
 
-    UFO_IMU_Data Get() const {
+    const UFO_IMU_Data& Get() const {
         return _data;
     }
 

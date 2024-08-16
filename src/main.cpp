@@ -1,16 +1,16 @@
 #include <Arduino.h>
-// #include "WiFi.h"
-// #include "AsyncUDP.h"
+
 #include "RxTxDataHandler.h"
+
 #include "UFO_Tasks/UFO_Task.h"
-
-
-#include "UFO_Driver/UFO_ESC.h"
 // #include "UFO_Motors.h"
 #include "UFO_Control.h"
-#include "UFO_Sensors/UFO_Sensors_I2C/UFO_Baro.h"
-#include "UFO_Sensors/UFO_Sensors_I2C/UFO_IMU.h"
-#include"UFO_math/Madgwick.h"
+
+#include "UFO_tempTest.h"
+#include "UFO_Sensors/UFO_Sensors_I2C/UFO_Compass.h"
+
+// #define TEST_MMM
+
 UFO_Control control;
 UFO_Motors motors;
 // AsyncUDP udp;
@@ -18,13 +18,13 @@ UFO_Motors motors;
 // UFO_PDOA test_cls;
 
 UFO_I2C_Driver driver;
-// // UFO_Baro baro(&driver);
-// UFO_IMU imu(&driver);
-
-// Madgwick filter;
-// // UFO_BaroData_t baroData;
-// UFO_IMU_Data imuData;
-
+#ifdef TEST_MMM
+QMC5883L qmc;
+MagData mag_data = {};
+#else
+UFO_Compass compass(&driver);
+Vector3<float> comData = {};
+#endif
 void setup()
 {
     delay(100);
@@ -37,30 +37,15 @@ void setup()
     Serial.println(err);
     Serial.print("inited ");
     Serial.println(driver.Initialized());
-    // // baro.InitSensor();
-    // Serial.println("Keep IMU level.");
-    // delay(500);
-    // imu.Calibrate();
-    // UFO_IMU_CalibrationData dt = imu.GetOffsets();
-    // Serial.println("Calibration done!");
-    // Serial.println("Accel biases X/Y/Z: ");
-    // Serial.print(dt._accelOffset._x);
-    // Serial.print(", ");
-    // Serial.print(dt._accelOffset._y);
-    // Serial.print(", ");
-    // Serial.println(dt._accelOffset._z);
-    // Serial.println("Gyro biases X/Y/Z: ");
-    // Serial.print(dt._gyroOffset._x);
-    // Serial.print(", ");
-    // Serial.print(dt._accelOffset._y);
-    // Serial.print(", ");
-    // Serial.println(dt._accelOffset._z);
-    // delay(5000);
-    // imu.InitSensor();
-    
-    // delay(200);
-    // filter.begin(0.2f);
 
+
+#ifdef TEST_MMM
+    qmc.init(&driver);
+#else
+    compass.InitSensor();
+#endif
+
+#pragma region
     // test_cls.CreateItem(123);
     // test_cls.CreateItem(0.213f);
     // test_cls.CreateItem(true);
@@ -76,20 +61,9 @@ void setup()
     //     Serial.println("|");
     // }
     // Serial.println();
-
-
-
-    
     delay(100);
     // control.Setup();
     delay(100);
-    for (uint8_t address = 1; address < 127; ++address)
-    {
-        if (!driver.ZeroWrite(address))
-        {
-            Serial.printf("Found on adress: %d (dec); 0x%x (hex)\n" , address, address);
-        }
-    }
 
     // rxDH.Addhandler([&](RX_INDEX i, int32_t v)
     //                 {
@@ -113,12 +87,21 @@ void setup()
     //     Serial.println("err");
     // }
     // udp.onPacket(parsePacket);
-    delay(200);
+#pragma endregion
 
     Serial.println("Start");
+      for (uint8_t address = 1; address < 127; ++address)
+    {
+        if (!driver.ZeroWrite(address))
+        {
+            Serial.printf("Found on adress: %d(dec); 0x%x(hex)\n" , address, address);
+        }
+    }
+    
+    delay(200);
     // UFO_CreateTask(UFO_TASKS_ID::TASK_WIFI_HANDL);
     delay(100);
-    UFO_CreateTask(UFO_TASKS_ID::TASK_IMU, &driver);
+    // UFO_CreateTask(UFO_TASKS_ID::TASK_IMU, &driver);
     delay(100);
     // UFO_CreateTask(UFO_TASKS_ID::TASK_BME);
     delay(100);
@@ -126,7 +109,34 @@ void setup()
     motors.Begin();
 }
 void loop()
-{
+{   
+#ifdef TEST_MMM
+    qmc.update();
+    mag_data = qmc.Get();
+    Serial.print(">X:");
+    Serial.println(mag_data.magX);
+    Serial.print(">Y:");
+    Serial.println(mag_data.magY );
+    Serial.print(">Z:");
+    Serial.println(mag_data.magZ );
+    delay(20);
+#else
+
+    compass();
+    comData = compass.Get();
+    Serial.print(">X:");
+    Serial.println(comData._x);
+    Serial.print(">Y:");
+    Serial.println(comData._y);
+    Serial.print(">Z:");
+    Serial.println(comData._z);
+    delay(20);
+
+#endif
+
+#pragma region
+
+
     // if (Serial.available() > 1)
     // {
     //     char key = Serial.read();
@@ -163,44 +173,8 @@ void loop()
     //     }
     // }
 
-    // baro();
-    // // baroData = baro.Get();
-    //     // Serial.print(baroData.Tempreture);
-    // // Serial.print('\t');
-    // // Serial.print(baroData.Presure);
-    // // Serial.print('\t');
-    // // Serial.print(baroData.Altitude);
-    // // Serial.println("================");
-
+#pragma endregion
     
-    
-    // imu();
-    // imuData = imu.Get();
-    // filter.updateIMU(
-    //     imuData._gyro._x,
-    //     imuData._gyro._y,
-    //     imuData._gyro._z,
-    //     imuData._accel._x,
-    //     imuData._accel._y,
-    //     imuData._accel._z
-    //     );
-    // float
-    //     q0 = filter.getQuatW(),
-    //     q1 = filter.getQuatX(),
-    //     q2 = filter.getQuatY(),
-    //     q3 = filter.getQuatZ();
-    // float roll = atan2(0.5f - q1 * q1 - q2 * q2, q0 * q1 + q2 * q3);
-    // float pitch = asinf(-2.0f * (q1 * q3 - q0 * q2));
-    // float yaw = atan2f(q1 * q2 + q0 * q3, 0.5f - q2 * q2 - q3 * q3);
-
-    // // delay(10);
-    // Serial.print(">yaw:");
-    // Serial.println(yaw * 180 / M_PI);
-    // Serial.print(">pitch:");
-    // Serial.println(pitch * 180 / M_PI);
-    // Serial.print(">roll:");
-    // Serial.println(roll * 180 / M_PI);
-    // delay(20);
 }
 
 // #include <QMC5883LCompass.h>
@@ -208,11 +182,6 @@ void loop()
 // #include "UFO_Tasks/UFO_Task.h"
 
 // QMC5883LCompass compass;
-// // MPU6050 mpu;
-// // uint8_t fifoBuffer[64]; // FIFO storage buffer
-// // Quaternion q;       // [w, x, y, z]         quaternion container
-// // VectorFloat gravity; // [x, y, z]            gravity vector
-// // float ypr[3];        // [yaw, pitch, roll]   yaw/pitch/roll container and gravity vector
 
 // void setup()
 // {
@@ -243,12 +212,6 @@ void loop()
 //     compass.setCalibrationOffsets(-66.00, 36.00, -446.00);
 //     compass.setCalibrationScales(1.03, 0.96, 1.01);
 
-//     // mpu.initialize();
-//     // mpu.CalibrateAccel();
-//     // mpu.CalibrateGyro();
-//     // mpu.dmpInitialize();
-//     // mpu.setDMPEnabled(true);
-//     UFO_CreateTask(UFO_TASKS_ID::TASK_IMU);
 // }
 // float hh = 0;
 
@@ -291,17 +254,6 @@ void loop()
 // void loop()
 // {
 
-//     // mpu.dmpGetCurrentFIFOPacket(fifoBuffer);
-//     // // mpu.getFIFOBytes(fifoBuffer, packetSize);
-//     // mpu.dmpGetQuaternion(&q, fifoBuffer);
-//     // mpu.dmpGetGravity(&gravity, &q);
-//     // mpu.dmpGetYawPitchRoll(ypr, &q, &gravity);
-//     // Serial.print("ypr\t");
-//     // Serial.print(ypr[0] * 180 / M_PI);
-//     // Serial.print("\t");
-//     // Serial.print(ypr[1] * 180 / M_PI);
-//     // Serial.print("\t");
-//     // Serial.println(ypr[2] * 180 / M_PI);
 
 //     // int x, y, z;
 //     // // // Read compass values

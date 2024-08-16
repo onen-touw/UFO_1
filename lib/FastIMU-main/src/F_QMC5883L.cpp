@@ -107,8 +107,13 @@ void QMC5883L::getMag(MagData* out)
 void QMC5883L::calibrateMag(calData* cal) 
 {
 	uint16_t ii = 0, sample_count = 0;
-	int32_t mag_bias[3] = { 0, 0, 0 }, mag_scale[3] = { 0, 0, 0 };
-	int16_t mag_max[3] = { -32767, -32767, -32767 }, mag_min[3] = { 32767, 32767, 32767 }, mag_temp[3] = { 0, 0, 0 };
+	int32_t
+		mag_bias[3] = {0, 0, 0},
+		mag_scale[3] = {0, 0, 0};
+	int16_t
+		mag_max[3] = {-INT16_MAX, -INT16_MAX, -INT16_MAX},
+		mag_min[3] = {INT16_MIN, INT16_MIN, INT16_MIN},
+		mag_temp[3] = {0, 0, 0};
 
 	// shoot for ~fifteen seconds of mag data
 	sample_count = 3000;  // at 200 Hz ODR, new mag data is available every 5 ms

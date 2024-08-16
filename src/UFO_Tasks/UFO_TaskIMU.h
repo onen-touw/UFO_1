@@ -6,10 +6,6 @@
 #include "../UFO_math/Madgwick.h"
 #include "../UFO_Sensors/UFO_Sensors_I2C/UFO_IMU.h"
 
-#define IMU_ADDRESS 0x68    //Change to the address of the IMU
-#define PERFORM_CALIBRATION //Comment to disable startup calibration
-
-
 void /*IRAM_ATTR*/ UFO_Task_IMU(void *arg)
 {
     UFO_SendToFunckMinimal *data = (UFO_SendToFunckMinimal *)arg;
@@ -19,15 +15,15 @@ void /*IRAM_ATTR*/ UFO_Task_IMU(void *arg)
     Serial.println(data->name);
     Serial.print("\tupdate time:");
     Serial.println(data->updTime);
-
     delay(10);
+    
     UFO_IMU imu(driver);
     Madgwick filter;
     UFO_IMU_Data imuData;
-
+    
     imu.InitSensor();
     UFO_IMU_CalibrationData dataCal;
-
+    
     Serial.println("Keep IMU level.");
     delay(5000);
     imu.Calibrate();
