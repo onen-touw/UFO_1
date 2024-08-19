@@ -5,8 +5,6 @@
 #include "../UFO_Control.h"
 
 
-// WARNING!!!
-//  ESP_DRAM_LOGx for interraption (maybe for IRAM_ATTR also )
 void /*IRAM_ATTR*/ UFO_Task_Control(void *arg)
 {
     UFO_SendToFunckMinimal *data = (UFO_SendToFunckMinimal *)arg;
@@ -19,8 +17,6 @@ void /*IRAM_ATTR*/ UFO_Task_Control(void *arg)
 
     while (true)
     {
-
-        
         delay(data->updTime); // (this delay is neccesary for yeild)
     }
 

@@ -72,7 +72,7 @@ void /*IRAM_ATTR*/ UFO_Task_IMU(void *arg)
         float pitch = asinf(-2.0f * (q1 * q3 - q0 * q2));
         float yaw = atan2f(q1 * q2 + q0 * q3, 0.5f - q2 * q2 - q3 * q3);
         Serial.print(">rollFiltered:");
-        Serial.println(adFilter(roll)* 180 / M_PI);
+        Serial.println(adFilter(roll)* 180 / M_PI); // <-------------- filter
         Serial.print(">yaw:");
         Serial.println(yaw* 180 / M_PI);
         Serial.print(">pitch:");

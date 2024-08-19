@@ -1,23 +1,25 @@
 #include <Arduino.h>
+#include "UFO_Tasks/UFO_Task.h"
+
 
 #include "RxTxDataHandler.h"
 
-#include "UFO_Tasks/UFO_Task.h"
-// #include "UFO_Motors.h"
 #include "UFO_Control.h"
 
-#include "UFO_tempTest.h"
 #include "UFO_Sensors/UFO_Sensors_I2C/UFO_Compass.h"
 
 // #define TEST_COMPASS
 
 UFO_Control control;
 UFO_Motors motors;
+
+UFO_I2C_Driver driver;
+
+
 // AsyncUDP udp;
 // RxDataHandler rxDH;
 // UFO_PDOA test_cls;
 
-UFO_I2C_Driver driver;
 
 
 #ifdef TEST_COMPASS
@@ -164,6 +166,8 @@ void loop()
     
 }
 
+
+#pragma region
 // #include <QMC5883LCompass.h>
 // #include "MPU6050_6Axis_MotionApps20.h"
 // #include "UFO_Tasks/UFO_Task.h"
@@ -177,24 +181,6 @@ void loop()
 //     // compass.init();
 //     // Serial.println("CALIBRATING. Keep moving your sensor...");
 //     // compass.calibrate();
-
-//     //   Serial.println("DONE. Copy the lines below and paste it into your projects sketch.);");
-//     //   Serial.println();
-//     //   Serial.print("compass.setCalibrationOffsets(");
-//     //   Serial.print(compass.getCalibrationOffset(0));
-//     //   Serial.print(", ");
-//     //   Serial.print(compass.getCalibrationOffset(1));
-//     //   Serial.print(", ");
-//     //   Serial.print(compass.getCalibrationOffset(2));
-//     //   Serial.println(");");
-//     //   Serial.print("compass.setCalibrationScales(");
-//     //   Serial.print(compass.getCalibrationScale(0));
-//     //   Serial.print(", ");
-//     //   Serial.print(compass.getCalibrationScale(1));
-//     //   Serial.print(", ");
-//     //   Serial.print(compass.getCalibrationScale(2));
-//     //   Serial.println(");");
-//     // delay(5000);
 //     compass.setMagneticDeclination(12, 0);
 //     compass.setCalibrationOffsets(-66.00, 36.00, -446.00);
 //     compass.setCalibrationScales(1.03, 0.96, 1.01);
@@ -271,3 +257,4 @@ void loop()
 
 //     // delay(50);
 // }
+#pragma endregion

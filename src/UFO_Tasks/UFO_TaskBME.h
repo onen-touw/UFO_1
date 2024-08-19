@@ -5,8 +5,6 @@
 
 #define PRESSURE_SEALEVELHPA (1013.25F) /**< Average sea level pressure is 1013.25 hPa */
 
-// WARNING!!!
-//  ESP_DRAM_LOGx for interraption (maybe for IRAM_ATTR also )
 void /*IRAM_ATTR*/ UFO_Task_BME(void *arg)
 {
     UFO_SendToFunckMinimal *data = (UFO_SendToFunckMinimal *)arg;
@@ -23,8 +21,6 @@ void /*IRAM_ATTR*/ UFO_Task_BME(void *arg)
     //     Serial.println("ERROR bme");
     // }
     // bme.setSeaLevelPre(PRESSURE_SEALEVELHPA);
-
-    
     
     // // bme.setTemperatureCompensation(-8.); todo
     delay(10);
