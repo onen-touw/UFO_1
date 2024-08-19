@@ -9,7 +9,7 @@
 #include "UFO_tempTest.h"
 #include "UFO_Sensors/UFO_Sensors_I2C/UFO_Compass.h"
 
-// #define TEST_MMM
+// #define TEST_COMPASS
 
 UFO_Control control;
 UFO_Motors motors;
@@ -18,13 +18,14 @@ UFO_Motors motors;
 // UFO_PDOA test_cls;
 
 UFO_I2C_Driver driver;
-#ifdef TEST_MMM
-QMC5883L qmc;
-MagData mag_data = {};
-#else
+
+
+#ifdef TEST_COMPASS
 UFO_Compass compass(&driver);
 Vector3<float> comData = {};
 #endif
+
+
 void setup()
 {
     delay(100);
@@ -39,9 +40,7 @@ void setup()
     Serial.println(driver.Initialized());
 
 
-#ifdef TEST_MMM
-    qmc.init(&driver);
-#else
+#ifdef TEST_COMPASS
     compass.InitSensor();
 #endif
 
@@ -101,7 +100,7 @@ void setup()
     delay(200);
     // UFO_CreateTask(UFO_TASKS_ID::TASK_WIFI_HANDL);
     delay(100);
-    // UFO_CreateTask(UFO_TASKS_ID::TASK_IMU, &driver);
+    UFO_CreateTask(UFO_TASKS_ID::TASK_IMU, &driver);
     delay(100);
     // UFO_CreateTask(UFO_TASKS_ID::TASK_BME);
     delay(100);
@@ -110,18 +109,7 @@ void setup()
 }
 void loop()
 {   
-#ifdef TEST_MMM
-    qmc.update();
-    mag_data = qmc.Get();
-    Serial.print(">X:");
-    Serial.println(mag_data.magX);
-    Serial.print(">Y:");
-    Serial.println(mag_data.magY );
-    Serial.print(">Z:");
-    Serial.println(mag_data.magZ );
-    delay(20);
-#else
-
+#ifdef TEST_COMPASS
     compass();
     comData = compass.Get();
     Serial.print(">X:");
@@ -131,7 +119,6 @@ void loop()
     Serial.print(">Z:");
     Serial.println(comData._z);
     delay(20);
-
 #endif
 
 #pragma region

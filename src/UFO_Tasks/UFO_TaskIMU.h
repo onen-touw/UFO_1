@@ -5,6 +5,7 @@
 // #include "FastIMU.h"
 #include "../UFO_math/Madgwick.h"
 #include "../UFO_Sensors/UFO_Sensors_I2C/UFO_IMU.h"
+#include "../UFO_math/UFO_FiltersInclude.h"
 
 void /*IRAM_ATTR*/ UFO_Task_IMU(void *arg)
 {
@@ -20,7 +21,11 @@ void /*IRAM_ATTR*/ UFO_Task_IMU(void *arg)
     UFO_IMU imu(driver);
     Madgwick filter;
     UFO_IMU_Data imuData;
-    
+    // UFO_AdaptiveFilter adFilter;
+    UFO_KalmanFilter adFilter;
+
+    adFilter.Set(0.5, 0.5, 0.8);
+    // adFilter.Set(0.1f, 0.5f, 0.3f);
     imu.InitSensor();
     UFO_IMU_CalibrationData dataCal;
     
@@ -66,7 +71,8 @@ void /*IRAM_ATTR*/ UFO_Task_IMU(void *arg)
         float roll = atan2(0.5f - q1 * q1 - q2 * q2, q0 * q1 + q2 * q3);
         float pitch = asinf(-2.0f * (q1 * q3 - q0 * q2));
         float yaw = atan2f(q1 * q2 + q0 * q3, 0.5f - q2 * q2 - q3 * q3);
-
+        Serial.print(">rollFiltered:");
+        Serial.println(adFilter(roll)* 180 / M_PI);
         Serial.print(">yaw:");
         Serial.println(yaw* 180 / M_PI);
         Serial.print(">pitch:");
