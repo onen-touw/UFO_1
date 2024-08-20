@@ -6,25 +6,67 @@
 
 #include "UFO_Control.h"
 
-#include "UFO_Sensors/UFO_Sensors_I2C/UFO_Compass.h"
+#define UFO_TEST_MODE
 
+#ifdef UFO_TEST_MODE
+
+#define TEST_PID
 // #define TEST_COMPASS
+// #define TEST_MOTORS
 
+// #define TEST_BME
+#ifdef TEST_BME
+#define TEST_BME_NEW UFO_ENABLE /*UFO_DISABLE*/
+#endif
+
+#ifdef TEST_BME
+#include "UFO_Sensors/UFO_Sensors_I2C/UFO_Baro.h"
+#endif
+
+#ifdef TEST_COMPASS
+#include "UFO_Sensors/UFO_Sensors_I2C/UFO_Compass.h"
+#endif
+
+
+#ifdef TEST_MOTORS
 UFO_Control control;
 UFO_Motors motors;
+#endif
+
+#ifdef TEST_PID
+#include "UFO_math/UFO_PID.h"
+#include "UFO_Sensors/UFO_Sensors_I2C/UFO_IMU.h"
+#endif
+
+#endif //UFO_TEST_MODE
+
 
 UFO_I2C_Driver driver;
-
-
 // AsyncUDP udp;
 // RxDataHandler rxDH;
 // UFO_PDOA test_cls;
 
-
+#ifdef TEST_BME
+UFO_Baro baro(&driver);
+UFO_BaroData_t baroData;
+#endif
 
 #ifdef TEST_COMPASS
 UFO_Compass compass(&driver);
 Vector3<float> comData = {};
+#endif
+
+#ifdef TEST_PID
+UFO_IMU imu(&driver);
+float
+    _kp = 10.f,
+    _ki = 0.f,
+    _kd = 0.f,
+    _ti = 0.1f;
+UFO_PID pitchPID(_kp, _ki, _kd, _ti);
+UFO_IMU_Data imuData;
+Madgwick maFilter;
+UFO_KalmanFilter adFilter;
 #endif
 
 
@@ -44,6 +86,37 @@ void setup()
 
 #ifdef TEST_COMPASS
     compass.InitSensor();
+#endif
+
+#ifdef TEST_BME
+    baro.InitSensor();
+    baro.SetTemperatureCompensation(-5.f);
+#endif
+#ifdef TEST_PID
+    adFilter.Set(0.5f, 0.5f, 0.8f);
+    imu.Calibrate();
+    maFilter.begin(0.2f);
+
+    //calibration
+    UFO_IMU_CalibrationData dataCal;
+    Serial.println("Keep IMU level.");
+    delay(5000);
+    imu.Calibrate();
+    dataCal = imu.GetOffsets();
+    Serial.println("Calibration done!");
+    Serial.println("Accel biases X/Y/Z: ");
+    Serial.print(dataCal._accelOffset._x);
+    Serial.print(", ");
+    Serial.print(dataCal._accelOffset._y);
+    Serial.print(", ");
+    Serial.println(dataCal._accelOffset._z);
+    Serial.println("Gyro biases X/Y/Z: ");
+    Serial.print(dataCal._gyroOffset._x);
+    Serial.print(", ");
+    Serial.print(dataCal._accelOffset._y);
+    Serial.print(", ");
+    Serial.println(dataCal._accelOffset._z);
+    delay(100);
 #endif
 
 #pragma region
@@ -98,16 +171,16 @@ void setup()
             Serial.printf("Found on adress: %d(dec); 0x%x(hex)\n" , address, address);
         }
     }
-    
+#ifndef UFO_TEST_MODE
     delay(200);
     // UFO_CreateTask(UFO_TASKS_ID::TASK_WIFI_HANDL);
     delay(100);
-    UFO_CreateTask(UFO_TASKS_ID::TASK_IMU, &driver);
+    // UFO_CreateTask(UFO_TASKS_ID::TASK_IMU, &driver);
     delay(100);
     // UFO_CreateTask(UFO_TASKS_ID::TASK_BME);
     delay(100);
-
-    motors.Begin();
+#endif
+    // motors.Begin();
 }
 void loop()
 {   
@@ -122,6 +195,99 @@ void loop()
     Serial.println(comData._z);
     delay(20);
 #endif
+
+#ifdef TEST_BME
+    #if TEST_BME_NEW
+    baro.Update();
+    #else
+    baro();
+    #endif
+    baroData = baro.Get();
+
+    Serial.print(">T:");
+    Serial.println(baroData.Tempreture);
+    Serial.print(">P:");
+    Serial.println(baroData.Presure);
+    Serial.print(">ALT:");
+    Serial.println(baroData.Altitude);
+    delay(20);
+#endif
+
+#ifdef TEST_PID
+    if (Serial.available() > 1)
+    {
+        char key = Serial.read();
+        float val = Serial.parseFloat();
+        switch (key)
+        {
+        case 'P':
+            Serial.print("SetP ");
+            Serial.println(val);
+            _kp = val;
+            break;
+        case 'I':
+            Serial.print("SetI ");
+            Serial.println(val);
+            _ki = val;
+            break;
+        case 'D':
+            Serial.print("SetD ");
+            Serial.println(val);
+            _kd = val;
+            break;
+        case 'T':
+            Serial.print("SetT ");
+            Serial.println(val);
+            _ti = val;
+            break;
+        case 'O':
+            Serial.println("Info");
+            Serial.print("P ");
+            Serial.print(_kp);
+            Serial.print("\tI ");
+            Serial.print(_ki);
+            Serial.print("\tD ");
+            Serial.print(_kd);
+            Serial.print("\tTi ");
+            Serial.println(_ti);
+            
+        default:
+            break;
+        }
+        pitchPID = UFO_PID(_kp, _ki, _kd, _ti);;
+    }
+    imu.Update();
+    imuData = imu.Get();
+    maFilter.updateIMU(
+        imuData._gyro._x,
+        imuData._gyro._y,
+        imuData._gyro._z,
+        imuData._accel._x,
+        imuData._accel._y,
+        imuData._accel._z);
+    float
+        q0 = maFilter.getQuatW(),
+        q1 = maFilter.getQuatX(),
+        q2 = maFilter.getQuatY(),
+        q3 = maFilter.getQuatZ();
+    // float roll = atan2(0.5f - q1 * q1 - q2 * q2, q0 * q1 + q2 * q3);
+    float pitch = asinf(-2.0f * (q1 * q3 - q0 * q2));
+    // float yaw = atan2f(q1 * q2 + q0 * q3, 0.5f - q2 * q2 - q3 * q3);
+    float val = adFilter(pitch) * 180 / M_PI;
+    Serial.print(">pitch:");
+    Serial.println(val); // <-------------- filter
+    Serial.print(">pitchPID:");
+    Serial.println(pitchPID.Calculate(0, val)); // <-------------- filter
+
+    delay(20);
+    // Serial.print(">yaw:");
+    // Serial.println(yaw* 180 / M_PI);
+    // Serial.print(">pitch:");
+    // Serial.println(pitch* 180 / M_PI);
+    // Serial.print(">roll:");
+    // Serial.println(roll* 180 / M_PI);
+#endif
+
 
 #pragma region
 
