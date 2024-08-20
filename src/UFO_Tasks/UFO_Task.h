@@ -14,8 +14,7 @@ struct UFO_TaskDescriptor tasksDesc[] = {
     {"WiFi", UFO_TASKS_ID::TASK_WIFI_HANDL, 8192, 5, 100, UFO_Task_WiFiControl, 0},
     {"IMU", UFO_TASKS_ID::TASK_IMU, 4096, 5, 20, UFO_Task_IMU, 1},
     {"BME", UFO_TASKS_ID::TASK_BME, 2048, 5, 100, UFO_Task_BME, 1},
-    {"Control", UFO_TASKS_ID::TASK_CONTROL, 2048, 5, 100, UFO_Task_Control, 1},
-    {"test_dshot", UFO_TASKS_ID::TASK_CONTROL, 2048, 5, 100, UFO_Task_Control, 1},
+    // {"Control", UFO_TASKS_ID::TASK_CONTROL, 2048, 5, 100, UFO_Task_Control, 1},
     // {"Main", UFO_TASKS_ID::MAIN, 4096, 5, 100, UFO_Task_Main, 0},
 };
 

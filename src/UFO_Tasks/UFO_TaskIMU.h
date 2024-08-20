@@ -25,10 +25,10 @@ void /*IRAM_ATTR*/ UFO_Task_IMU(void *arg)
     UFO_KalmanFilter adFilter;
 
     adFilter.Set(0.5, 0.5, 0.8);
+    filter.begin(0.2f);
     // adFilter.Set(0.1f, 0.5f, 0.3f);
     imu.InitSensor();
     UFO_IMU_CalibrationData dataCal;
-    
     Serial.println("Keep IMU level.");
     delay(5000);
     imu.Calibrate();
@@ -46,9 +46,6 @@ void /*IRAM_ATTR*/ UFO_Task_IMU(void *arg)
     Serial.print(dataCal._accelOffset._y);
     Serial.print(", ");
     Serial.println(dataCal._accelOffset._z);
-    imu.InitSensor();
-    delay(100);
-    filter.begin(0.2f);
     delay(100);
 
     while (true)
@@ -72,7 +69,7 @@ void /*IRAM_ATTR*/ UFO_Task_IMU(void *arg)
         float pitch = asinf(-2.0f * (q1 * q3 - q0 * q2));
         float yaw = atan2f(q1 * q2 + q0 * q3, 0.5f - q2 * q2 - q3 * q3);
         Serial.print(">rollFiltered:");
-        Serial.println(adFilter(roll)* 180 / M_PI);
+        Serial.println(adFilter(roll)* 180 / M_PI); // <-------------- filter
         Serial.print(">yaw:");
         Serial.println(yaw* 180 / M_PI);
         Serial.print(">pitch:");

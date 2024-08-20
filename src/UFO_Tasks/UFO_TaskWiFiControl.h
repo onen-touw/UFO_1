@@ -4,7 +4,7 @@
 #include "../UFO_WiFi.h"
 #include "AsyncUDP.h"
 #include "../UFO_Config.h"
-
+#include "../RxTxDataHandler.h"
 RxDataHandler rxDH;
 struct EngData
 {
@@ -26,8 +26,6 @@ void parsePacket(AsyncUDPPacket packet)
     // toESC();
 }
 
-// WARNING!!!
-//  ESP_DRAM_LOGx for interraption (maybe for IRAM_ATTR also )
 void /*IRAM_ATTR*/ UFO_Task_WiFiControl(void *arg)
 {
     UFO_SendToFunckMinimal *data = (UFO_SendToFunckMinimal *)arg;

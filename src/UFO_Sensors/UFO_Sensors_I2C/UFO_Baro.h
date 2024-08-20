@@ -4,7 +4,7 @@
 #include "../../UFO_Driver/UFO_I2C_Interface.h"
 
 #define UFO_BME280_ADDRESS ((uint8_t)0x76) // Primary I2C Address
-
+#define UFO_BARO_ENABLE_HUMIDITY    UFO_DISABLE
 // now only bme280
 
 struct UFO_BaroData_t
@@ -33,27 +33,33 @@ private:
         BME280_REGISTER_DIG_P8 = 0x9C,
         BME280_REGISTER_DIG_P9 = 0x9E,
 
+#if UFO_BARO_ENABLE_HUMIDITY
         BME280_REGISTER_DIG_H1 = 0xA1,
         BME280_REGISTER_DIG_H2 = 0xE1,
         BME280_REGISTER_DIG_H3 = 0xE3,
         BME280_REGISTER_DIG_H4 = 0xE4,
         BME280_REGISTER_DIG_H5 = 0xE5,
         BME280_REGISTER_DIG_H6 = 0xE7,
+#endif
 
         BME280_REGISTER_CHIPID = 0xD0,
         BME280_REGISTER_VERSION = 0xD1,
         BME280_REGISTER_SOFTRESET = 0xE0,
 
         BME280_REGISTER_CAL26 = 0xE1, // R calibration stored in 0xE1-0xF0
-
-        BME280_REGISTER_CONTROLHUMID = 0xF2,
+#if UFO_BARO_ENABLE_HUMIDITY
+        BME280_REGISTER_CONFIG_HUMID = 0xF2,
+#endif
         BME280_REGISTER_STATUS = 0XF3,
-        BME280_REGISTER_CONTROL = 0xF4,
+        BME280_REGISTER_CONFIG_MEASURE = 0xF4,
         BME280_REGISTER_CONFIG = 0xF5,
         BME280_REGISTER_PRESSUREDATA = 0xF7,
         BME280_REGISTER_TEMPDATA = 0xFA,
+#if UFO_BARO_ENABLE_HUMIDITY
         BME280_REGISTER_HUMIDDATA = 0xFD
-    } _reg;
+#endif
+
+    };
     struct
     {
         uint16_t dig_T1; ///< temperature compensation value
@@ -70,12 +76,14 @@ private:
         int16_t dig_P8;  ///< pressure compensation value
         int16_t dig_P9;  ///< pressure compensation value
 
+#if UFO_BARO_ENABLE_HUMIDITY
         uint8_t dig_H1; ///< humidity compensation value
         int16_t dig_H2; ///< humidity compensation value
         uint8_t dig_H3; ///< humidity compensation value
         int16_t dig_H4; ///< humidity compensation value
         int16_t dig_H5; ///< humidity compensation value
         int8_t dig_H6;  ///< humidity compensation value
+#endif
     } _calib;
 
     enum Sampling :uint8_t
@@ -114,12 +122,21 @@ private:
 	};
 
 private:
+// todo
+    using _int = int32_t;
+    using _uint = uint32_t;
+    using _shrt = int16_t;
+    using _ushrt = uint16_t;
+    using _byte = uint8_t;
 
-	int32_t t_fine;	   //!< temperature with high resolution
-	float _seaLevelPre = 0;
-	int32_t t_fine_adjust = 0; //!< add to compensate temp readings
+	_int _tFine = 0;	   //fine tempreture (for this class like global var // see DS 4.2.3)
+	int32_t _tAdjast = 0; //add to compensate temp readings
+	float _seaLevelPre = 101325.f;  // todo correct this value
+    
     UFO_BaroData_t _data;
-
+    _int 
+        _rawT = 0,
+        _rawP = 0;
 public:
     UFO_Baro(UFO_I2C_Driver* driver) {
         esp_err_t err = this->Init(UFO_BME280_ADDRESS, driver);
@@ -145,7 +162,6 @@ public:
         // reset the device using soft-reset
         // this makes sure the IIR is off, etc.
         this->Write8(BME280_REGISTER_SOFTRESET, 0xB6);
-
         // wait for chip to wake up.
         delay(10);
 
@@ -158,123 +174,61 @@ public:
         Serial.println();
         __ReadCoefficients(); // read trimming parameters, see DS 4.2.2
 
-        SetSampling(); // use defaults
+        SetConfig(); // use defaults
 
         delay(100);
     }
 
-    void SetSampling(
+    void SetConfig(
         Mode mode = MODE_NORMAL,
-        Sampling tempSampling = SAMPLING_X16,
+        Sampling tempSampling = SAMPLING_X1,
         Sampling pressSampling = SAMPLING_X16,
-        Filter filter = FILTER_X4,
+        Filter filter = FILTER_X16,
         Duration duration = STANDBY_MS_0_5)
     {
         // making sure sensor is in sleep mode before setting configuration
         // as it otherwise may be ignored
-        this->Write8(BME280_REGISTER_CONTROL, MODE_SLEEP);
+        this->Write8(BME280_REGISTER_CONFIG_MEASURE, MODE_SLEEP);
 
         // you must make sure to also set REGISTER_CONTROL after setting the
         // CONTROLHUMID register, otherwise the values won't be applied (see
         // DS 5.4.3)
-        uint8_t conf = SAMPLING_X1;
-        this->Write8(BME280_REGISTER_CONTROLHUMID, conf);
-
+        uint8_t conf = 0;
+        #if UFO_BARO_ENABLE_HUMIDITY
+        conf = SAMPLING_X1;
+        this->Write8(BME280_REGISTER_CONFIG_HUMID, conf);
+        #endif
 
         conf = (duration << 5) | (filter << 2) | 0;
-        this->Write8(BME280_REGISTER_CONFIG, conf);
-
+        this->Write8(BME280_REGISTER_CONFIG, conf); //equal 0b000_100_00 by default
 
         conf = (tempSampling << 5) | (pressSampling << 2) | mode;
-        this->Write8(BME280_REGISTER_CONTROL, conf);
+        this->Write8(BME280_REGISTER_CONFIG_MEASURE, conf); // equal 0b001_010_11 by default
+
+        // this->Write8(BME280_REGISTER_CONFIG_MEASURE, conf); // equal 0b001_011_11
 }
 
-
-
-float GetTemperature()
-{
-	int32_t var1, var2;
-
-	int32_t adc_T = this->Read24(BME280_REGISTER_TEMPDATA);
-	if (adc_T == 0x800000) // value in case temp measurement was disabled
-		return NAN;
-	adc_T >>= 4;
-
-	var1 = (int32_t)((adc_T / 8) - ((int32_t)_calib.dig_T1 * 2));
-	var1 = (var1 * ((int32_t)_calib.dig_T2)) / 2048;
-	var2 = (int32_t)((adc_T / 16) - ((int32_t)_calib.dig_T1));
-	var2 = (((var2 * var2) / 4096) * ((int32_t)_calib.dig_T3)) / 16384;
-
-	t_fine = var1 + var2 + t_fine_adjust;
-	int32_t T = (t_fine * 5 + 128) / 256;
-    _data.Tempreture = static_cast<float>(T) / 100; 
-	return _data.Tempreture;
-}
-float GetPressure()
-{
-	int64_t var1, var2, var3, var4;
-
-	GetTemperature(); // must be done first to get t_fine
-
-	int32_t adc_P = this->Read24(BME280_REGISTER_PRESSUREDATA);
-	if (adc_P == 0x800000) // value in case pressure measurement was disabled
-		return NAN;
-	adc_P >>= 4;
-
-	var1 = static_cast<int64_t>(t_fine) - 128000;
-	var2 = var1 * var1 * static_cast<int64_t>(_calib.dig_P6);
-	var2 = var2 + ((var1 * static_cast<int64_t>(_calib.dig_P5)) * 131072);
-	var2 = var2 + (static_cast<int64_t>(_calib.dig_P4) * 34359738368);
-	var1 = ((var1 * var1 * static_cast<int64_t>(_calib.dig_P3)) / 256) +
-		   ((var1 * static_cast<int64_t>(_calib.dig_P2) * 4096));
-	var3 = ((int64_t)1) * 140737488355328;
-	var1 = (var3 + var1) * static_cast<int64_t>(_calib.dig_P1) / 8589934592;
-
-	if (var1 == 0)
-	{
-		return 0; // avoid exception caused by division by zero
-	}
-
-	var4 = 1048576 - adc_P;
-	var4 = (((var4 * 2147483648) - var2) * 3125) / var1;
-	var1 = (static_cast<int64_t>(_calib.dig_P9) * (var4 / 8192) * (var4 / 8192)) /
-		   33554432;
-	var2 = (static_cast<int64_t>(_calib.dig_P8) * var4) / 524288;
-	var4 = ((var4 + var1 + var2) / 256) + (static_cast<int64_t>(_calib.dig_P7) * 16);
-
-	_data.Presure = var4 / 256.0;
-	return _data.Presure;
-}
-float GetAltitude(float seaLevel)
-{
-	// Equation taken from BMP180 datasheet (page 16):
-	//  http://www.adafruit.com/datasheets/BST-BMP180-DS000-09.pdf
-	float atmospheric = GetPressure() / 100.0f; 
-    _data.Altitude = 44330.0 * (1.0 - pow(atmospheric / seaLevel, 0.1903));
-	return _data.Altitude;
-}
-float GetSeaLevelForAltitude(float altitude, float atmospheric)
-{
-	// Equation taken from BMP180 datasheet (page 17):
-	//  http://www.adafruit.com/datasheets/BST-BMP180-DS000-09.pdf
-	return atmospheric / pow(1.0 - (altitude / 44330.0), 5.255);
-}
-void SetTemperatureCompensation(float adjustment)
-{
-	// convert the value in C into and adjustment to t_fine
-	t_fine_adjust = ((static_cast<int32_t>(adjustment * 100) << 8)) / 5;
-};
-
-void operator ()() {
-    GetAltitude(1013.25F); // 1013.25F
-}
-
+//new: 
+//todo check and compare
 void Update(){
-    GetAltitude(1013.25F); // 1013.25F
+    _rawT = this->Read24(BME280_REGISTER_TEMPDATA);
+    _rawP = this->Read24(BME280_REGISTER_PRESSUREDATA);
+
+    __RawToReal();
 }
 
 const UFO_BaroData_t& Get() const {
     return _data;
+}
+
+void SetTemperatureCompensation(float adjustment)
+{
+	// convert the value in C into and adjustment to t_fine
+	_tAdjast = ((static_cast<int32_t>(adjustment * 100) << 8)) / 5;
+};
+
+void operator ()() {
+    Update();
 }
 
 private:
@@ -294,6 +248,7 @@ void __ReadCoefficients()
 	_calib.dig_P8 = this->Read16_Signed_LittleEndian(BME280_REGISTER_DIG_P8);
 	_calib.dig_P9 = this->Read16_Signed_LittleEndian(BME280_REGISTER_DIG_P9);
 
+#if UFO_BARO_ENABLE_HUMIDITY
 	_calib.dig_H1 = this->Read8(BME280_REGISTER_DIG_H1);
 	_calib.dig_H2 = this->Read16_Signed_LittleEndian(BME280_REGISTER_DIG_H2);
 	_calib.dig_H3 = this->Read8(BME280_REGISTER_DIG_H3);
@@ -302,12 +257,59 @@ void __ReadCoefficients()
 	_calib.dig_H5 = (static_cast<int8_t>(this->Read8(BME280_REGISTER_DIG_H5 + 1)) << 4) |
 						   (this->Read8(BME280_REGISTER_DIG_H5) >> 4);
 	_calib.dig_H6 = static_cast<int8_t>(this->Read8(BME280_REGISTER_DIG_H6));
+#endif
 }
-
+// if ret zero then bme ready to work
 bool __IsReadingCalibration()
 {
 	uint8_t const rStatus = this->Read8(BME280_REGISTER_STATUS);
 	return (rStatus & (1 << 0)) != 0;
 }
 
+
+void __RawToReal(){
+
+    //tempreture like in DS 4.2.3
+    _int
+        magic1 = 0,
+        magic2 = 0;
+    _rawT >>= 4;
+    magic1 = (((_rawT >> 3) - static_cast<_int>(_calib.dig_T1 << 1)) * (static_cast<_int>(_calib.dig_T2))) >> 11;
+    magic2 = (((((_rawT >> 4) - static_cast<_int>(_calib.dig_T1)) * ((_rawT >> 4) - static_cast<_int>(_calib.dig_T1))) >> 12) * (static_cast<_int>(_calib.dig_T3))) >> 14;
+    _tFine = magic1 + magic2 + _tAdjast; // where t_fine_adjust is not degC
+
+    _data.Tempreture = static_cast<float>(((_tFine * 5 + 128) >> 8)) / 100.f;   // degC
+    Serial.print(">T:");
+    Serial.println (_data.Tempreture);
+
+    // pressure like in DS 4.2.3
+    int64_t
+        magic11 = 0,
+        magic22 = 0,
+        magicP = 0;
+    magic11 = static_cast<int64_t>(_tFine) - 128000;
+    magic22 =  magic11*magic11*static_cast<int64_t>(_calib.dig_P6);
+    magic22 = magic22 + ((magic11 * static_cast<int64_t>(_calib.dig_P5)) << 17); //+
+    magic22 = magic22 + (static_cast<int64_t>(_calib.dig_P4) << 35);
+    magic11 = ((magic11 * magic11 * static_cast<int64_t>(_calib.dig_P3)) >> 8) + ((magic11 * static_cast<int64_t>(_calib.dig_P2)) << 12);
+    magic11 = ((1ll << 47) + magic11) * (static_cast<int64_t>(_calib.dig_P1)) >> 33; // +
+    if (magic11 == 0)
+    {
+        return;
+    }
+    _rawP >>= 4;
+    magicP = 1048576 - _rawP;
+    magicP = (((magicP << 31) - magic22) * 3125) / magic11; // +
+    magic11 = (static_cast<int64_t>(_calib.dig_P9) * (magicP >>13 ) * (magicP >>13)) >> 25; // +
+    magic22 = (static_cast<int64_t> (_calib.dig_P8) * magicP) >> 19;
+    magicP = ((magicP + magic11 + magic22) >> 8) + (static_cast<int64_t>(_calib.dig_P7) << 4);
+
+    // pascal
+    _data.Presure = static_cast<float>(magicP)/256.f;
+    // calculating altitude by pressure
+    _data.Altitude = 44330.0f * (1.0f - pow((_data.Presure) / _seaLevelPre, 0.1903f));
+}
+
 };
+
+
