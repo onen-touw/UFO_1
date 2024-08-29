@@ -1,26 +1,27 @@
 #include <Arduino.h>
 #include "UFO_Tasks/UFO_Task.h"
 
-
 #include "RxTxDataHandler.h"
-
 #include "UFO_Control.h"
 
 #define UFO_TEST_MODE
 
 #ifdef UFO_TEST_MODE
 
-#define TEST_PID
+
+#define TEST_WIFI
+// #define TEST_PID
 // #define TEST_COMPASS
 // #define TEST_MOTORS
-
 // #define TEST_BME
-#ifdef TEST_BME
-#define TEST_BME_NEW UFO_ENABLE /*UFO_DISABLE*/
+
+#ifdef TEST_WIFI
+#include "UFO_WiFi_.h"
 #endif
 
 #ifdef TEST_BME
 #include "UFO_Sensors/UFO_Sensors_I2C/UFO_Baro.h"
+#define TEST_BME_NEW UFO_ENABLE /*UFO_DISABLE*/
 #endif
 
 #ifdef TEST_COMPASS
@@ -67,6 +68,10 @@ UFO_PID pitchPID(_kp, _ki, _kd, _ti);
 UFO_IMU_Data imuData;
 Madgwick maFilter;
 UFO_KalmanFilter adFilter;
+#endif
+
+#ifdef TEST_WIFI
+UFO_WiFi_ _wfd;
 #endif
 
 
@@ -181,6 +186,13 @@ void setup()
     delay(100);
 #endif
     // motors.Begin();
+
+#ifdef TEST_WIFI
+ _wfd.Init();
+#endif
+
+
+
 }
 void loop()
 {   
