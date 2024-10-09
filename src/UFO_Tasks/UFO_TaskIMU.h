@@ -18,7 +18,7 @@ void /*IRAM_ATTR*/ UFO_Task_IMU(void *arg)
     Serial.println(data->updTime);
     delay(10);
     
-    UFO_IMU imu(driver);
+    UFO_IMU imu(driver);            //set reinterpret_cast<UFO_I2C_Driver*>(data->arg) instead driver
     Madgwick filter;
     UFO_IMU_Data imuData;
     // UFO_AdaptiveFilter adFilter;

@@ -169,7 +169,7 @@ void setup()
 #pragma endregion
 
     Serial.println("Start");
-      for (uint8_t address = 1; address < 127; ++address)
+    for (uint8_t address = 1; address < 127; ++address)
     {
         if (!driver.ZeroWrite(address))
         {
@@ -188,7 +188,7 @@ void setup()
     // motors.Begin();
 
 #ifdef TEST_WIFI
- _wfd.Init();
+    err = _wfd.Init();
 #endif
 
 
