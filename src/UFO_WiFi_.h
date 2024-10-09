@@ -88,7 +88,12 @@ public:
             switch (_if)
             {
             case WIFI_MODE_AP:
+                Serial.println("Starting wifi in Ap mode");
+                
+                Serial.println("\tInitializing AP...");
                 __InitAP();
+
+                Serial.println("\tInitializing wifi driver...");
                 err = __DriverInit();
                 if (err)
                 {
@@ -109,18 +114,35 @@ public:
                     Serial.println("ERROR:: esp_netif_get_ip_info");
                     return ESP_FAIL;
                 }
+
+                Serial.println("\tSuccses!!!");
                 Serial.printf("IP::");
                 __add= &ip.ip;
                 Serial.printf(IPSTR, IP2STR(__add));
+                Serial.println();
 
                 break;
             case WIFI_MODE_STA:
+                Serial.println("Starting wifi in STA mode:");
+
+                Serial.println("\tInitializing STA...");
                 __InitSTA();
+
+                Serial.println("\tInitializing wifi driver...");
+                err = __DriverInit();
+                if (err)
+                {
+                    Serial.println("ERROR:: __DriverInit");
+                    return err;
+                }
                 break;
             default:
                 err = ESP_FAIL;
                 return err;
             }
+
+            Serial.print("Initing err code:\t");
+            Serial.println(err);
             return err;
         }
 
@@ -141,10 +163,10 @@ public:
 
         //  else :
         err = __DriverDeinit();
-         _if = WIFI_MODE_AP; 
+        _if = WIFI_MODE_AP;
         __InitAP();
         err = __DriverInit();
-        return err;        
+        return err;
     }
 
 
@@ -170,9 +192,9 @@ private:
 
     void __InitAP(){
         _conf.ap.channel = 6;
-        _conf.ap.max_connection = 4;            //set to 1
+        _conf.ap.max_connection = 1;            //set to 1
         _conf.ap.beacon_interval = 100;
-        // _conf.ap.ssid_hidden = 0;
+        _conf.ap.ssid_hidden = 0;
         _conf.ap.authmode = WIFI_AUTH_WPA2_PSK;
         _conf.ap.ssid_len = 12;
         _conf.ap.ssid[0] = 0;
