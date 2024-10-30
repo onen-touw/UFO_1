@@ -8,7 +8,11 @@ static esp_netif_t *_netiff;
 
 #define WIFI_CONNECTED_BIT  0b00001
 #define WIFI_FAIL_BIT       0b00010
-
+#define UFO_WIFI_DEF_BASE_IP "192.168.4.2"
+#define UFO_WIFI_DEF_NETMASK "255.255.255.0"
+#define UFO_WIFI_DEF_GW_ADDR "192.168.4.1"
+#define UFO_WIFI_DEF_MAINDNS_SERVER UFO_WIFI_DEF_GW_ADDR
+#define UFO_WIFI_DEF_BCP_DNS_SERVER UFO_WIFI_DEF_GW_ADDR
 
 class UFO_WiFi_
 {
@@ -18,7 +22,7 @@ private:
 
 
     wifi_config_t _conf = {}; 
-    wifi_mode_t _if =  wifi_mode_t::WIFI_MODE_STA;     //wifi interface::: null === auto (start like ap, if error -> sta) / sta === station / ap === access point 
+    wifi_mode_t _if =  wifi_mode_t::WIFI_MODE_AP;     //wifi interface::: null === auto (start like ap, if error -> sta) / sta === station / ap === access point 
     
     // uint16_t ___a;                                      // may be it will replace _eGrp;
     bool _driverStarted = false;
@@ -145,11 +149,54 @@ public:
         return err;
     }
 
+    esp_err_t SetApIP(const char* ipstr){
+        esp_err_t err = ESP_OK;
+        esp_netif_dhcp_status_t status = ESP_NETIF_DHCP_INIT;
+	    esp_netif_ip_info_t info;
 
+        if(!strlen(ipstr)){
+            info.ip.addr = ipaddr_addr(UFO_WIFI_DEF_BASE_IP);
+            info.gw.addr = ipaddr_addr(UFO_WIFI_DEF_GW_ADDR);
+        }
+        else {
+            info.ip.addr = ipaddr_addr(ipstr);
+            info.gw.addr = ipaddr_addr(ipstr);
+        }
+
+
+        info.netmask.addr = ipaddr_addr(UFO_WIFI_DEF_NETMASK);
+
+
+        err = esp_netif_dhcpc_get_status(_netiff, &status);
+        if(err){
+        	log_e("DHCPC Get Status Failed! 0x%04x", err);
+        	return err;
+        }
+		err = esp_netif_dhcpc_stop(_netiff);
+		if(err && err != ESP_ERR_ESP_NETIF_DHCP_ALREADY_STOPPED){
+			log_e("DHCPC Stop Failed! 0x%04x", err);
+			return err;
+		}
+        err = esp_netif_set_ip_info(_netiff, &info);
+        if(err){
+        	log_e("Netif Set IP Failed! 0x%04x", err);
+        	return err;
+        }
+    	if(info.ip.addr == 0){
+    		err = esp_netif_dhcpc_start(_netiff);
+    		if(err){
+            	Serial.printf("DHCPC Start Failed! 0x%04x", err);
+            	return err;
+            }
+    	}
+        return err;
+    }
 
 private:
 
     void __InitSTA(){
+        const char *ss = "KULON";
+        const char *ps = "KULON";
         _conf.sta.channel = 0;
         _conf.sta.listen_interval = 0;
         _conf.sta.scan_method = WIFI_ALL_CHANNEL_SCAN;//WIFI_ALL_CHANNEL_SCAN or WIFI_FAST_SCAN
@@ -162,23 +209,25 @@ private:
         _conf.sta.threshold.authmode = WIFI_AUTH_OPEN;
         _conf.sta.ssid[0] = 0;
         _conf.sta.password[0] = 0;
-        memcpy(_conf.sta.ssid, "TP-Link_2722", 13);
-        memcpy(_conf.sta.password, "89565544", 9);
+        memcpy(_conf.sta.ssid, ss, strlen(ss));
+        memcpy(_conf.sta.password, ps, strlen(ps));;
     }
 
     void __InitAP(){
-        _conf.ap.channel = 6;
+        const char* ss = "ESP_UFO32";
+        const char* ps = "12345678";
+        _conf.ap.channel = 0;
         _conf.ap.max_connection = 1;            //set to 1
         _conf.ap.beacon_interval = 100;
         _conf.ap.ssid_hidden = 0;
         _conf.ap.authmode = WIFI_AUTH_WPA2_PSK;
-        _conf.ap.ssid_len = 12;
+        _conf.ap.ssid_len = strlen(ss);
         _conf.ap.ssid[0] = 0;
         _conf.ap.password[0] = 0;
         _conf.ap.ftm_responder = false;
         _conf.ap.pairwise_cipher = WIFI_CIPHER_TYPE_CCMP; // Disable by default enabled insecure TKIP and use just CCMP.
-        memcpy(_conf.ap.ssid, "esp32323232", 12);
-        memcpy(_conf.ap.password, "12345678", 9);
+        memcpy(_conf.ap.ssid, ss, strlen(ss));
+        memcpy(_conf.ap.password,  ps, strlen(ps));
 
         // if (ssid != NULL && ssid[0] != 0)
         // {
@@ -278,7 +327,7 @@ private:
         }
 
         wifi_interface_t if_f = wifi_interface_t::WIFI_IF_AP;
-        if (_if != WiFiMode_t::WIFI_MODE_AP)
+        if (_if != wifi_mode_t::WIFI_MODE_AP)
         {
             if_f = wifi_interface_t::WIFI_IF_STA;
         }
