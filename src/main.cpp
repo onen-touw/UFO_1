@@ -9,6 +9,9 @@
 #ifdef UFO_TEST_MODE
 
 
+
+
+#define UFO_TEST_UDP
 #define TEST_WIFI
 // #define TEST_PID
 // #define TEST_COMPASS
@@ -17,6 +20,11 @@
 
 #ifdef TEST_WIFI
 #include "UFO_WiFi_.h"
+#endif
+
+#ifdef UFO_TEST_UDP
+// #include "UFO_UDP.h"
+#include "UFO_Socket.h"
 #endif
 
 #ifdef TEST_BME
@@ -74,6 +82,12 @@ UFO_KalmanFilter adFilter;
 UFO_WiFi_ _wfd;
 #endif
 
+#ifdef UFO_TEST_UDP
+// UFO_UDP udp;
+UFO_Socket sock;
+SockTxData_t* txdata = new SockTxData_t();
+int32_t _cnt = 0;
+#endif
 
 void setup()
 {
@@ -189,11 +203,43 @@ void setup()
 
 #ifdef TEST_WIFI
     err = _wfd.Init();
+
+
+    // err = _wfd.SetApIP("192.168.40.12");
+
 #endif
 
 
+#ifdef UFO_TEST_UDP
+    Serial.println("Test buffer");
 
+    String ss = "test_buffer";
+
+    txdata->_lock = xSemaphoreCreateMutex();
+    if (!txdata->_lock)
+    {
+        // set critical  [no mem]
+        Serial.print("critical error:: [xSemaphoreCreateMutex] no mem");
+        Serial.print(" ");
+        Serial.print(__FILE__);
+        Serial.print("\t");
+        Serial.println(__LINE__);
+    }
+    Serial.println("lock created");
+
+    memcpy(txdata->_dcb._buff, ss.c_str(), ss.length());
+    txdata->_dcb._len = ss.length();
+
+    Serial.printf("string: %s, len: %d\n", txdata->_dcb._buff, txdata->_dcb._len);
+
+    Serial.println("Sock initializing");
+    sock.SetPort(6464);
+    sock.SetTrsmCB(txdata);
+    sock.Setup();
+#endif
 }
+
+
 void loop()
 {   
 #ifdef TEST_COMPASS
@@ -300,48 +346,17 @@ void loop()
     // Serial.println(roll* 180 / M_PI);
 #endif
 
+#ifdef UFO_TEST_UDP
+String s(_cnt);
+memcpy(txdata->_dcb._buff, s.c_str(), s.length());
+txdata->_dcb._len = s.length();
+txdata->_ready = true;
+++_cnt;
+sock.Iteration();
+delay(10);
 
-#pragma region
-
-
-    // if (Serial.available() > 1)
-    // {
-    //     char key = Serial.read();
-    //     int val = Serial.parseInt();
-    //     switch (key)
-    //     {
-    //     case 'V':
-    //         motors.SendAll(val);
-    //         break;
-    //     case 'A':
-    //         motors.Arm();
-    //         digitalWrite(4, 1);
-    //         digitalWrite(2, 1);
-    //         break;
-    //     case 'D':
-    //         motors.DisArm();
-    //         digitalWrite(4, 0);
-    //         digitalWrite(2, 0);
-    //         break;
-    //     case '0':
-    //         motors.Send(0, val);
-    //         break;
-    //     case '1':
-    //         motors.Send(1, val);
-    //         break;
-    //     case '2':
-    //         motors.Send(2, val);
-    //         break;
-    //     case '3':
-    //         motors.Send(3, val);
-    //         break;
-    //     default:
-    //         break;
-    //     }
-    // }
-
-#pragma endregion
-    
+#endif
+ 
 }
 
 
