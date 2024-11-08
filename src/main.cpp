@@ -6,17 +6,29 @@
 
 #define UFO_TEST_MODE
 
+
 #ifdef UFO_TEST_MODE
 
 
 
-
-#define UFO_TEST_UDP
+//==============================================
+// #define UFO_TEST_UDP
+#define UFO_TEST_SocketTask
 #define TEST_WIFI
 // #define TEST_PID
 // #define TEST_COMPASS
 // #define TEST_MOTORS
 // #define TEST_BME
+#define TEST_WHEELS
+//==============================================
+
+#ifdef TEST_WHEELS
+#include "TEST_Wheel.h"
+#endif
+
+#ifdef UFO_TEST_SocketTask
+#include "UFO_Socket.h"
+#endif
 
 #ifdef TEST_WIFI
 #include "UFO_WiFi_.h"
@@ -48,12 +60,14 @@ UFO_Motors motors;
 #endif
 
 #endif //UFO_TEST_MODE
+//==============================================
 
+#ifdef UFO_TEST_SocketTask
+    SockTxData_t* txdata = new SockTxData_t();
+    RxDataHandler rxdh;
 
-UFO_I2C_Driver driver;
-// AsyncUDP udp;
-// RxDataHandler rxDH;
-// UFO_PDOA test_cls;
+#endif
+
 
 #ifdef TEST_BME
 UFO_Baro baro(&driver);
@@ -87,8 +101,11 @@ UFO_WiFi_ _wfd;
 UFO_Socket sock;
 SockTxData_t* txdata = new SockTxData_t();
 int32_t _cnt = 0;
+RxDataHandler rxdh;
 #endif
+        int32_t p = 0, r=0;
 
+UFO_I2C_Driver driver;
 void setup()
 {
     delay(100);
@@ -203,10 +220,7 @@ void setup()
 
 #ifdef TEST_WIFI
     err = _wfd.Init();
-
-
     // err = _wfd.SetApIP("192.168.40.12");
-
 #endif
 
 
@@ -215,17 +229,17 @@ void setup()
 
     String ss = "test_buffer";
 
-    txdata->_lock = xSemaphoreCreateMutex();
-    if (!txdata->_lock)
-    {
-        // set critical  [no mem]
-        Serial.print("critical error:: [xSemaphoreCreateMutex] no mem");
-        Serial.print(" ");
-        Serial.print(__FILE__);
-        Serial.print("\t");
-        Serial.println(__LINE__);
-    }
-    Serial.println("lock created");
+    // txdata->_lock = xSemaphoreCreateMutex();
+    // if (!txdata->_lock)
+    // {
+    //     // set critical  [no mem]
+    //     Serial.print("critical error:: [xSemaphoreCreateMutex] no mem");
+    //     Serial.print(" ");
+    //     Serial.print(__FILE__);
+    //     Serial.print("\t");
+    //     Serial.println(__LINE__);
+    // }
+    // Serial.println("lock created");
 
     memcpy(txdata->_dcb._buff, ss.c_str(), ss.length());
     txdata->_dcb._len = ss.length();
@@ -233,10 +247,69 @@ void setup()
     Serial.printf("string: %s, len: %d\n", txdata->_dcb._buff, txdata->_dcb._len);
 
     Serial.println("Sock initializing");
+    sock.SetType(UFO_SOCK_SERVER);
     sock.SetPort(6464);
     sock.SetTrsmCB(txdata);
+
+    rxdh.Addhandler([&](RX_INDEX i, int32_t v){
+        switch (i)
+        {
+        case RX_IND_PITCH:
+            p=v;
+            break;
+        case RX_IND_ROLL: 
+            r=v;
+            break;
+        default:
+            break;
+        }
+
+
+    });
+
+    sock.SetRecvFuck([](SockDCB_t* rrcv){
+        String ss = (rrcv->_buff);
+        rxdh(ss);
+    });
+
+
     sock.Setup();
 #endif
+
+#ifdef UFO_TEST_SocketTask
+    rxdh.Addhandler([&](RX_INDEX i, int32_t v){
+        switch (i)
+        {
+        case RX_IND_PITCH:
+            p=v;
+            break;
+        case RX_IND_ROLL: 
+            r=v;
+            break;
+        default:
+            break;
+        }
+        TestPinLoop(p,r);
+    });
+
+
+    UFO_SockConfigMinimal* sockConf = new UFO_SockConfigMinimal();
+    sockConf->_type = UFO_SOCK_SERVER;
+    sockConf->_callbackFunc = [&](SockDCB_t* rrcv){
+        String ss = (rrcv->_buff);
+        rxdh(ss);
+    };
+    sockConf->_port = 6464;
+    sockConf->_TxBuf = txdata;
+    UFO_CreateTask( TASK_SOCKET, sockConf);
+
+
+    TestPinSetup();
+#endif
+    // UFO_CreateTask( TASK_IMU, &driver);
+
+
+    // TestPinSetup();
 }
 
 
@@ -347,16 +420,22 @@ void loop()
 #endif
 
 #ifdef UFO_TEST_UDP
-String s(_cnt);
-memcpy(txdata->_dcb._buff, s.c_str(), s.length());
-txdata->_dcb._len = s.length();
-txdata->_ready = true;
-++_cnt;
-sock.Iteration();
-delay(10);
-
+    String s(_cnt);
+    memcpy(txdata->_dcb._buff, s.c_str(), s.length());
+    txdata->_dcb._len = s.length();
+    txdata->_ready = true;
+    ++_cnt;
+    sock.Iteration();
+    TestPinLoop(p, r);
+    delay(10);
 #endif
- 
+
+#ifdef UFO_TEST_SocketTask
+    txdata->Msg("MSG");
+    delay(20);
+#endif
+    
+
 }
 
 

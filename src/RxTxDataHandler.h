@@ -1,6 +1,8 @@
 #pragma once
 #include "UFO_Config.h"
 
+#include <iostream>
+
 enum TX_TYPE : uint8_t
 {
     TX_NONE = '\0',
@@ -113,6 +115,14 @@ private:
 
 class RxDataHandler
 {
+
+private: 
+    int32_t iter = 0;
+    bool isValid = true;
+    RX_TYPE curType = RX_TYPE::RX_NONE;
+    // int32_t itemCount = 0;
+    std::function<void(RX_INDEX, int32_t)> handlFunck;
+
 public:
     RxDataHandler() {}
     RxDataHandler(std::function<void(RX_INDEX, int32_t)> funck) : handlFunck(funck) {}
@@ -149,7 +159,11 @@ public:
         return isValid;
     }
 
+
 private:
+
+    
+
     void _ParseType(String &str)
     {
 
@@ -164,19 +178,16 @@ private:
 
     void _ParseItem(String &str)
     {
+        if (!isValid)
         {
-            if (!isValid)
-            {
-                return;
-            }
-            RX_INDEX ind = _ParseIndex(str);
-            int32_t val = _ParseValue(str);
-            handlFunck(ind, val);
-
-            // ++itemCount;
-            // std::cout << curType << "\t" << ind << "\t" << val << "\n";
-            // std::cout << "=============\n";
+            return;
         }
+        RX_INDEX ind = _ParseIndex(str);
+        int32_t val = _ParseValue(str);
+        handlFunck(ind, val);
+
+        // std::cout << (char)ind << "\t" << val << "\n";
+        // std::cout << "=============\n";
     }
 
     void _ParsePacket(String &str)
@@ -231,9 +242,5 @@ private:
         return val;
     }
 
-    int32_t iter = 0;
-    bool isValid = true;
-    RX_TYPE curType = RX_TYPE::RX_NONE;
-    // int32_t itemCount = 0;
-    std::function<void(RX_INDEX, int32_t)> handlFunck;
+
 };

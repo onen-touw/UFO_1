@@ -129,8 +129,8 @@ private:
     using _ushrt = uint16_t;
     using _byte = uint8_t;
 
-	_int _tFine = 0;	   //fine tempreture (for this class like global var // see DS 4.2.3)
-	int32_t _tAdjast = 0; //add to compensate temp readings
+	_int _tFine = 0;	   // fine tempreture (for this class like global var // see DS 4.2.3)
+	int32_t _tAdjast = 0; // add to compensate temp readings
 	float _seaLevelPre = 101325.f;  // todo correct this value
     
     UFO_BaroData_t _data;

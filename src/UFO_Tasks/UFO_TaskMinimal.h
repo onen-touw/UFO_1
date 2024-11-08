@@ -5,7 +5,7 @@
 enum UFO_TASKS_ID : uint8_t
 {
     NO_TASK,
-    TASK_WIFI_HANDL,
+    TASK_SOCKET,
     TASK_IMU,
     TASK_BME,
     TASK_CONTROL,

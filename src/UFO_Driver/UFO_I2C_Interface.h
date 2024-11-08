@@ -4,6 +4,11 @@
 
 #define UFO_I2C_BUFFER_SIZE ((int32_t)32)
 
+enum UFO_BitOrder : uint8_t{
+    BIT_ORDER_LSB,
+    BIT_ORDER_MSB,
+};
+
 class UFO_I2C_Interface 
 {
 protected:
@@ -76,4 +81,35 @@ public:
         uint8_t buf[] = {reg, val};
         return _driver->Write(_addr, buf, 2);
     }
+
+    esp_err_t Write(uint8_t reg, uint32_t val, uint32_t numbytes, UFO_BitOrder order){
+        uint8_t buf[5] = {};
+
+        if (numbytes > 4)
+        {
+            return ESP_FAIL;
+        }
+        buf[0] = reg;
+        for (int i = 0; i < numbytes; i++)
+        {
+            if (order == BIT_ORDER_LSB)
+            {
+                buf[i+1] = val & 0xFF;
+            }
+            else
+            {
+                buf[numbytes - i] = val & 0xFF;
+            }
+            val >>= 8;
+        }
+
+        return _driver->Write(_addr, buf, numbytes+1);
+    }
+    //     esp_err_t Write16(uint8_t reg, uint16_t val)
+    // {
+    //     // uint8_t buf[] = {reg, val};
+    //     // return _driver->Write(_addr, buf, 2);
+    //             uint8_t buf[] = {reg, val};
+    //     return _driver->Write(_addr, buf, 3);
+    // }
 };
