@@ -20,7 +20,6 @@ private:
     void* pass = nullptr; // void* for a while 
     void* ssid = nullptr;// void* for a while 
 
-
     wifi_config_t _conf = {}; 
     wifi_mode_t _if =  wifi_mode_t::WIFI_MODE_AP;     //wifi interface::: null === auto (start like ap, if error -> sta) / sta === station / ap === access point 
     
@@ -125,7 +124,7 @@ public:
             Serial.println(err);
             return err;
         }
-
+        // todo 
         _if = WIFI_MODE_STA; 
         __InitSTA();
         err = __DriverInit();

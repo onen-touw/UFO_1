@@ -1,10 +1,10 @@
 todo::
 
-[ ] Фильтр маджвика:
-    [ ] дописать перевод в углы Эйлера
-    [ ] переписать под себя библеотеку FastIMU, выбрав только MPU6050 
+[+] Фильтр маджвика:
+    [+] дописать перевод в углы Эйлера
+    [+] переписать под себя библеотеку FastIMU, выбрав только MPU6050 
         (на данный момент только она интересна)
-[ ] Рефакторинг UFO_Task_IMU
+[+] Рефакторинг UFO_Task_IMU
 [ ] Разработать систему debug 
 
 [ ] определение является ли устройство wifi точкой доступа(AP) или является STA
@@ -24,20 +24,3 @@ todo::
         если это отладка по проводу:
             ...
             todo
-    
-//pseudo for Sockets
-    class UFO_Socket {
-        private vars:
-            _sock
-            ...
-            
-            _std::function<void>()_recvFunck
-
-        public funcks;
-
-            CreateClient(serverIp, port)            // если создается Socket, при уже существующем => ошибка
-            CreateServer(port)
-            Send(msg)
-            SetRecvFunck(lambda)                    // установка лямбды на парсинг msg
-            Close()
-    } 

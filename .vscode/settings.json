@@ -65,6 +65,7 @@
         "i2c_struct.h": "c",
         "i2c_periph.h": "c",
         "i2c_reg.h": "c",
-        "semphr.h": "c"
+        "semphr.h": "c",
+        "iostream": "cpp"
     }
 }
