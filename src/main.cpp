@@ -65,6 +65,7 @@ UFO_Motors motors;
 #ifdef UFO_TEST_SocketTask
     SockTxData_t* txdata = new SockTxData_t();
     RxDataHandler rxdh;
+    int32_t _cnt = 0;
 
 #endif
 
@@ -296,8 +297,9 @@ void setup()
     UFO_SockConfigMinimal* sockConf = new UFO_SockConfigMinimal();
     sockConf->_type = UFO_SOCK_SERVER;
     sockConf->_callbackFunc = [&](SockDCB_t* rrcv){
-        String ss = (rrcv->_buff);
-        rxdh(ss);
+        // String ss = (rrcv->_buff);
+        // rxdh(ss);
+        Serial.printf(">>%s\n", rrcv->_buff);
     };
     sockConf->_port = 6464;
     sockConf->_TxBuf = txdata;
@@ -431,7 +433,9 @@ void loop()
 #endif
 
 #ifdef UFO_TEST_SocketTask
-    txdata->Msg("MSG");
+    String m(_cnt++);
+    m+= "_cnt";
+    txdata->Msg(m.c_str());
     delay(20);
 #endif
     
