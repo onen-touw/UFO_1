@@ -66,6 +66,7 @@
         "i2c_periph.h": "c",
         "i2c_reg.h": "c",
         "semphr.h": "c",
-        "iostream": "cpp"
+        "iostream": "cpp",
+        "esp32-hal-rgb-led.h": "c"
     }
 }

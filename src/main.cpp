@@ -12,15 +12,27 @@
 
 
 //==============================================
+// #define UFO_TEST_LORA
+#define UFO_TEST_LORA_2
+
 // #define UFO_TEST_UDP
-#define UFO_TEST_SocketTask
-#define TEST_WIFI
+// #define UFO_TEST_SocketTask
+// #define TEST_WIFI
 // #define TEST_PID
 // #define TEST_COMPASS
 // #define TEST_MOTORS
 // #define TEST_BME
-#define TEST_WHEELS
+// #define TEST_WHEELS
 //==============================================
+
+#ifdef UFO_TEST_LORA
+// #include "LoRa_E220.h"
+#endif
+
+
+#ifdef UFO_TEST_LORA_2
+#include "UFO_Lora_e220440T22D.h"
+#endif
 
 #ifdef TEST_WHEELS
 #include "TEST_Wheel.h"
@@ -104,12 +116,62 @@ int32_t _cnt = 0;
 RxDataHandler rxdh;
 #endif
         int32_t p = 0, r=0;
+    int32_t _cnt = 0;
 
+#ifdef UFO_TEST_LORA
+LoRa_E220 lora(&Serial2, 4,2,5);
+#endif
+#ifdef UFO_TEST_LORA
+
+void printParameters(struct Configuration configuration) {
+	DEBUG_PRINTLN("----------------------------------------");
+
+	DEBUG_PRINT(F("HEAD : "));  DEBUG_PRINT(configuration.COMMAND, HEX);DEBUG_PRINT(" ");DEBUG_PRINT(configuration.STARTING_ADDRESS, HEX);DEBUG_PRINT(" ");DEBUG_PRINTLN(configuration.LENGHT, HEX);
+	DEBUG_PRINTLN(F(" "));
+	DEBUG_PRINT(F("AddH : "));  DEBUG_PRINTLN(configuration.ADDH, HEX);
+	DEBUG_PRINT(F("AddL : "));  DEBUG_PRINTLN(configuration.ADDL, HEX);
+	DEBUG_PRINTLN(F(" "));
+	DEBUG_PRINT(F("Chan : "));  DEBUG_PRINT(configuration.CHAN, DEC); DEBUG_PRINT(" -> "); DEBUG_PRINTLN(configuration.getChannelDescription());
+	DEBUG_PRINTLN(F(" "));
+	DEBUG_PRINT(F("SpeedParityBit     : "));  DEBUG_PRINT(configuration.SPED.uartParity, BIN);DEBUG_PRINT(" -> "); DEBUG_PRINTLN(configuration.SPED.getUARTParityDescription());
+	DEBUG_PRINT(F("SpeedUARTDatte     : "));  DEBUG_PRINT(configuration.SPED.uartBaudRate, BIN);DEBUG_PRINT(" -> "); DEBUG_PRINTLN(configuration.SPED.getUARTBaudRateDescription());
+	DEBUG_PRINT(F("SpeedAirDataRate   : "));  DEBUG_PRINT(configuration.SPED.airDataRate, BIN);DEBUG_PRINT(" -> "); DEBUG_PRINTLN(configuration.SPED.getAirDataRateDescription());
+	DEBUG_PRINTLN(F(" "));
+	DEBUG_PRINT(F("OptionSubPacketSett: "));  DEBUG_PRINT(configuration.OPTION.subPacketSetting, BIN);DEBUG_PRINT(" -> "); DEBUG_PRINTLN(configuration.OPTION.getSubPacketSetting());
+	DEBUG_PRINT(F("OptionTranPower    : "));  DEBUG_PRINT(configuration.OPTION.transmissionPower, BIN);DEBUG_PRINT(" -> "); DEBUG_PRINTLN(configuration.OPTION.getTransmissionPowerDescription());
+	DEBUG_PRINT(F("OptionRSSIAmbientNo: "));  DEBUG_PRINT(configuration.OPTION.RSSIAmbientNoise, BIN);DEBUG_PRINT(" -> "); DEBUG_PRINTLN(configuration.OPTION.getRSSIAmbientNoiseEnable());
+	DEBUG_PRINTLN(F(" "));
+	DEBUG_PRINT(F("TransModeWORPeriod : "));  DEBUG_PRINT(configuration.TRANSMISSION_MODE.WORPeriod, BIN);DEBUG_PRINT(" -> "); DEBUG_PRINTLN(configuration.TRANSMISSION_MODE.getWORPeriodByParamsDescription());
+	DEBUG_PRINT(F("TransModeEnableLBT : "));  DEBUG_PRINT(configuration.TRANSMISSION_MODE.enableLBT, BIN);DEBUG_PRINT(" -> "); DEBUG_PRINTLN(configuration.TRANSMISSION_MODE.getLBTEnableByteDescription());
+	DEBUG_PRINT(F("TransModeEnableRSSI: "));  DEBUG_PRINT(configuration.TRANSMISSION_MODE.enableRSSI, BIN);DEBUG_PRINT(" -> "); DEBUG_PRINTLN(configuration.TRANSMISSION_MODE.getRSSIEnableByteDescription());
+	DEBUG_PRINT(F("TransModeFixedTrans: "));  DEBUG_PRINT(configuration.TRANSMISSION_MODE.fixedTransmission, BIN);DEBUG_PRINT(" -> "); DEBUG_PRINTLN(configuration.TRANSMISSION_MODE.getFixedTransmissionDescription());
+
+
+	DEBUG_PRINTLN("----------------------------------------");
+}
+void printModuleInformation(struct ModuleInformation moduleInformation) {
+	Serial.println("----------------------------------------");
+	DEBUG_PRINT(F("HEAD: "));  DEBUG_PRINT(moduleInformation.COMMAND, HEX);DEBUG_PRINT(" ");DEBUG_PRINT(moduleInformation.STARTING_ADDRESS, HEX);DEBUG_PRINT(" ");DEBUG_PRINTLN(moduleInformation.LENGHT, DEC);
+
+	Serial.print(F("Model no.: "));  Serial.println(moduleInformation.model, HEX);
+	Serial.print(F("Version  : "));  Serial.println(moduleInformation.version, HEX);
+	Serial.print(F("Features : "));  Serial.println(moduleInformation.features, HEX);
+	Serial.println("----------------------------------------");
+
+}
+#endif
+
+#ifdef UFO_TEST_LORA_2
+    UFO_Lora_e220440T22D lora;
+#endif
 UFO_I2C_Driver driver;
 void setup()
 {
     delay(100);
     Serial.begin(115200);
+
+    Serial2.begin(9600);
+    Serial2.setTimeout(100);
 
     // Wire.begin();
     // Wire.setClock(400000); //400khz clock
@@ -296,8 +358,9 @@ void setup()
     UFO_SockConfigMinimal* sockConf = new UFO_SockConfigMinimal();
     sockConf->_type = UFO_SOCK_SERVER;
     sockConf->_callbackFunc = [&](SockDCB_t* rrcv){
-        String ss = (rrcv->_buff);
-        rxdh(ss);
+        // String ss = (rrcv->_buff);
+        // rxdh(ss);
+        Serial.printf(">>%s\n", rrcv->_buff);
     };
     sockConf->_port = 6464;
     sockConf->_TxBuf = txdata;
@@ -310,11 +373,82 @@ void setup()
 
 
     // TestPinSetup();
+
+#ifdef UFO_TEST_LORA
+	// Startup all pins and UART
+	lora.begin();
+
+	ResponseStructContainer c;
+	c = lora.getConfiguration();
+	// It's important get configuration pointer before all other operation
+	Configuration configuration = *(Configuration*) c.data;
+	Serial.println(c.status.getResponseDescription());
+	Serial.println(c.status.code);
+	printParameters(configuration);
+
+
+    //	----------------------- DEFAULT TRANSPARENT -----------------------
+	configuration.ADDL = 0x03;  // First part of address
+	configuration.ADDH = 0x00; // Second part
+
+	configuration.CHAN = 23; // Communication channel
+
+	configuration.SPED.uartBaudRate = UART_BPS_9600; // Serial baud rate
+	configuration.SPED.airDataRate = AIR_DATA_RATE_010_24; // Air baud rate
+	configuration.SPED.uartParity = MODE_00_8N1; // Parity bit
+
+	configuration.OPTION.subPacketSetting = SPS_200_00; // Packet size
+	configuration.OPTION.RSSIAmbientNoise = RSSI_AMBIENT_NOISE_DISABLED; // Need to send special command
+	configuration.OPTION.transmissionPower = POWER_22; // Device power
+
+	configuration.TRANSMISSION_MODE.enableRSSI = RSSI_DISABLED; // Enable RSSI info
+	configuration.TRANSMISSION_MODE.fixedTransmission = FT_TRANSPARENT_TRANSMISSION; // Enable repeater mode
+	configuration.TRANSMISSION_MODE.enableLBT = LBT_DISABLED; // Check interference
+	configuration.TRANSMISSION_MODE.WORPeriod = WOR_2000_011; // WOR timing
+//	----------------------- DEFAULT TRANSPARENT WITH RSSI -----------------------
+// Set configuration changed and set to not hold the configuration
+	ResponseStatus rs = lora.setConfiguration(configuration, WRITE_CFG_PWR_DWN_SAVE);
+	Serial.println(rs.getResponseDescription());
+	Serial.println(rs.code);
+
+	c = lora.getConfiguration();
+	// It's important get configuration pointer before all other operation
+	configuration = *(Configuration*) c.data;
+	Serial.println(c.status.getResponseDescription());
+	Serial.println(c.status.code);
+
+	printParameters(configuration);
+	c.close();
+#endif
+
+
+
+#ifdef UFO_TEST_LORA_2
+    lora.Setup();
+#endif
 }
+
 
 
 void loop()
 {   
+#ifdef UFO_TEST_LORA_2
+    lora.Iteration();
+    delay(2000);
+#endif
+
+
+#ifdef UFO_TEST_LORA
+if (lora.available()>1) {
+	ResponseContainer rc = lora.receiveMessage();
+    Serial.println(rc.data);
+  }
+  String input = "Hey";
+  input += String(_cnt++);
+  ResponseStatus rs = lora.sendFixedMessage(0, 0x10, 23, input);
+#endif
+
+
 #ifdef TEST_COMPASS
     compass();
     comData = compass.Get();
@@ -431,13 +565,13 @@ void loop()
 #endif
 
 #ifdef UFO_TEST_SocketTask
-    txdata->Msg("MSG");
+    String m(_cnt++);
+    m+= "_cnt";
+    txdata->Msg(m.c_str());
     delay(20);
 #endif
-    
 
 }
-
 
 #pragma region
 // #include <QMC5883LCompass.h>
