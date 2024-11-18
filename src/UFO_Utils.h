@@ -7,7 +7,7 @@
 esp_err_t UFO_gpioConfig(gpio_num_t pin, gpio_mode_t mode){
 
     gpio_config_t conf = {
-        .pin_bit_mask = 1LL << pin,
+        .pin_bit_mask = 1ULL << pin,
         .mode = mode,           //GPIO_MODE_INPUT | GPIO_MODE_OUTPUT
         .pull_up_en = GPIO_PULLUP_ENABLE,
         .pull_down_en = GPIO_PULLDOWN_DISABLE,

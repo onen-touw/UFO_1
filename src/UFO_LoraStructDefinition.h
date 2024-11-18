@@ -8,10 +8,10 @@
 #define UFO_LORA_M1_PIN     (gpio_num_t::GPIO_NUM_5)
 #define UFO_LORA_AUX_PIN    (gpio_num_t::GPIO_NUM_4)
 
+#define UFO_LORA_BROADCAST 0xff;
 
 enum UFO_LoraResponseStatus : uint8_t
 {
-    LORA_SUCCESS = 1,
     LORA_SUCCESS = 1,
     LORA_ERR_UNKNOWN, /* something shouldn't happened */
     LORA_ERR_NOT_SUPPORT,
@@ -29,16 +29,28 @@ enum UFO_LoraResponseStatus : uint8_t
     LORA_ERR_PACKET_TOO_BIG
 };
 
-enum UFO_LoraSerialBoundRate : uint32_t
+enum UFO_LoraUartBPS : uint8_t
 {
-    LORA_BDRT_1200 = 1200,
-    LORA_BDRT_2400 = 2400,
-    LORA_BDRT_4800 = 4800,
-    LORA_BDRT_9600 = 9600,
-    LORA_BDRT_19200 = 19200,
-    LORA_BDRT_38400 = 38400,
-    LORA_BDRT_57600 = 57600,
-    LORA_BDRT_115200 = 115200,
+    LORA_UART_BPS_1200 = 0b000,
+    LORA_UART_BPS_2400 = 0b001,
+    LORA_UART_BPS_4800 = 0b010,
+    LORA_UART_BPS_9600 = 0b011,
+    LORA_UART_BPS_19200 = 0b100,
+    LORA_UART_BPS_38400 = 0b101,
+    LORA_UART_BPS_57600 = 0b110,
+    LORA_UART_BPS_115200 = 0b111
+};
+
+enum UFO_LoraAirDataRate : uint8_t
+{
+    LORA_AIR_DATA_RATE_000_24 = 0b000,
+    LORA_AIR_DATA_RATE_001_24 = 0b001,
+    LORA_AIR_DATA_RATE_010_24 = 0b010,
+    LORA_AIR_DATA_RATE_011_48 = 0b011,
+    LORA_AIR_DATA_RATE_100_96 = 0b100,
+    LORA_AIR_DATA_RATE_101_192 = 0b101,
+    LORA_AIR_DATA_RATE_110_384 = 0b110,
+    LORA_AIR_DATA_RATE_111_625 = 0b111
 };
 
 enum UFO_LoraParity : uint8_t
@@ -58,10 +70,12 @@ enum UFO_LoraSubpacketSetting : uint8_t
 };
 
 // todo
-enum UFO_LoraRSSI_AmbientNoise : uint8_t
+enum UFO_LoraRSSIorAmbientNoise : uint8_t
 {
+    LORA_RSSI_AMBIENT_NOISE_DISABLED = 0b0,
+    LORA_RSSI_DISABLED = 0b0,
     LORA_RSSI_AMBIENT_NOISE_ENABLED = 0b1,
-    LORA_RSSI_AMBIENT_NOISE_DISABLED = 0b0
+    LORA_RSSI_ENABLED = 0b1,
 };
 
 enum UFO_LoraWOR_Period : uint8_t
@@ -84,18 +98,30 @@ enum UFO_LoraTransmitionPower : uint8_t
     LORA_POWER_10dbm = 0b11
 };
 
-enum REGISTER_ADDRESS : uint8_t{
-	LORA_REG_ADDRESS_CFG			= 0x00,
-	LORA_REG_ADDRESS_SPED 		    = 0x02,
-	LORA_REG_ADDRESS_TRANS_MODE 	= 0x03,
-	LORA_REG_ADDRESS_CHANNEL 	    = 0x04,
-	LORA_REG_ADDRESS_OPTION	 	    = 0x05,
-	LORA_REG_ADDRESS_CRYPT	 	    = 0x06,
-	LORA_REG_ADDRESS_PID		 	= 0x08
+enum UFO_LoraRegAddr : uint8_t {
+    LORA_REG_ADDRESS_CFG = 0x00,
+    LORA_REG_ADDRESS_SPED = 0x02,
+    LORA_REG_ADDRESS_TRANS_MODE = 0x03,
+    LORA_REG_ADDRESS_CHANNEL = 0x04,
+    LORA_REG_ADDRESS_OPTION = 0x05,
+    LORA_REG_ADDRESS_CRYPT = 0x06,
+    LORA_REG_ADDRESS_PID = 0x08
 };
 
-
-
+enum UFO_LoraCMD {
+    WRITE_CFG_PWR_DWN_SAVE = 0xC0,
+    READ_CONFIGURATION = 0xC1,
+    WRITE_CFG_PWR_DWN_LOSE = 0xC2,
+    WRONG_FORMAT = 0xFF,
+    // RETURNED_COMMAND 		= 0xC1,
+    // SPECIAL_WIFI_CONF_COMMAND = 0xCF
+};
+enum UFO_LoraMode {
+    LORA_MODE_NORMAL,
+    LORA_MODE_WORTX,
+    LORA_MODE_SLEEP = 2,
+    LORA_MODE_CMD = 2,
+};
 
 struct UFO_LoraDataCB
 {
@@ -103,44 +129,106 @@ struct UFO_LoraDataCB
     uint8_t _len = 0;
     uint8_t _errorCount = 0;
     int32_t _lastCallTick = 0;
-
-    
-};
-
-struct UFO_LoraTargetInfo
-{
-    char _addrHigh = ' ';
-    char _addrLow = ' ';
-    char _chan = 0;
-    
+    bool _ready = false;
 };
 
 struct UFO_LoraConfig
 {
+    uint8_t _addh = UFO_LORA_BROADCAST;
+    uint8_t _addl = UFO_LORA_BROADCAST;
+    uint8_t _chan = 255;
+    UFO_LoraMode _mode = LORA_MODE_SLEEP;
+    UFO_LoraUartBPS br = LORA_UART_BPS_9600;
+    UFO_LoraParity prty = LORA_MODE_00_8N1;
+    UFO_LoraAirDataRate adrt = LORA_AIR_DATA_RATE_010_24;
+    UFO_LoraSubpacketSetting sbset = LORA_SPS_200_00;
+    UFO_LoraRSSIorAmbientNoise ambns = LORA_RSSI_AMBIENT_NOISE_DISABLED;
+    UFO_LoraTransmitionPower trsmpwr = LORA_POWER_22dbm;
+    UFO_LoraRSSIorAmbientNoise rssi = LORA_RSSI_DISABLED;
+    UFO_LoraWOR_Period worperi = LORA_WOR_500_000;
+    uint8_t crypthi = 0;
+    uint8_t cryptlo = 0;
+    char _cfg[8];
 
-    
+    void GenCfg()
+    {
+        _cfg[0] = _addh;
+        _cfg[1] = _addl;
+
+        uint8_t
+            tmp = 0b00000000;
+        tmp |= (br << 5);
+        tmp |= (prty << 3);
+        tmp |= (adrt);
+        _cfg[2] = tmp;
+
+        tmp = 0b00000000;
+        tmp |= (sbset << 6);
+        tmp |= (ambns << 5);
+        // other bits are reserved (4,3,2)
+        tmp |= trsmpwr;
+        _cfg[3] = tmp;
+        tmp = 0b00000000;
+
+        if (_chan > 84)
+        {
+            _chan = 83;
+        }
+        if (_chan < 0)
+        {
+            _chan = 0;
+        }
+
+        _cfg[4] = (tmp | _chan);
+
+        tmp = 0b00000000;
+        tmp |= (rssi << 7);
+        //fixed transmition only
+        tmp |= (0b1 << 6);
+        //5th bit is reserved
+        tmp |= (0b0 << 4);
+        //3th bit is reserved
+        tmp |= (worperi);
+        _cfg[5] = tmp;
+
+        _cfg[6] = crypthi;          // crypt hi
+        _cfg[7] = cryptlo;          // crypt lo
+    }
 };
 
 struct UFO_LoraControlBlock
 {
-    UFO_LoraTargetInfo _target;
-    SemaphoreHandle_t _lock;
-    UFO_LoraConfig _conf;
     UFO_LoraDataCB _data;
-    bool _ready = false;
+    SemaphoreHandle_t _lock;
 
-    bool Msg(const char *pl)
+    bool Msg(const char *payload, int16_t size)
     {
-        int16_t l = strlen(pl);
+        if (size > UFO_LORA_BUFFER_SIZE)
+        {
+            return false; // false if overflow
+        }
+        if (xSemaphoreTake(_lock, TickType_t(1000)) == pdTRUE)
+        {
+            memcpy(_data._payload, payload, size);
+            _data._len = size;
+            _data._ready = true;
+            xSemaphoreGive(_lock);
+        }
+        return true;
+    }
+
+    bool Msg(const char *payload)
+    {
+        int16_t l = strlen(payload);
         if (l > UFO_LORA_BUFFER_SIZE)
         {
             return false; // false if overflow
         }
         if (xSemaphoreTake(_lock, TickType_t(1000)) == pdTRUE)
         {
-            memcpy(_data._payload, pl, l);
+            memcpy(_data._payload, payload, l);
             _data._len = l;
-            _ready = true;
+            _data._ready = true;
             xSemaphoreGive(_lock);
         }
         return true;
