@@ -1,7 +1,7 @@
 #pragma once
 
 #include "UFO_TaskMinimal.h"
-#include "../UFO_Socket.h"
+#include "../UFO_WiDTx/UFO_Socket.h"
 
 void /*IRAM_ATTR*/ UFO_Task_Socket(void *arg)
 {
