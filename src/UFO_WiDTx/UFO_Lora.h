@@ -1,33 +1,51 @@
 #pragma once
 
-#include "UFO_LoraStructDefinition.h"
-#include "UFO_TaskClassBase.h"
+#include "UFO_WiDTxConf/UFO_LoraDefs.h"
+#include "../UFO_TaskClassBase.h"
 
 class UFO_Lora_e220440T22D : public UFO_TaskClassBase
 {
 private:
     
-    UFO_LoraControlBlock* _ctrlBlk;
-    UFO_LoraConfig _conf;
+    UFO_TrsmControlBlock* _ctrlBlk;
+    UFO_LoraSettings _conf;
     bool _ready = false;
+    UFO_TrsmDataControlBlock* _rcv;
+    std::function<void(UFO_TrsmDataControlBlock* rcv)> _callbackFunc;
 
 public:
-    UFO_Lora_e220440T22D(/* args */) {}
-    ~UFO_Lora_e220440T22D() {}
+    UFO_Lora_e220440T22D(/* args */) {
 
-    void SetTrsmCB(UFO_LoraControlBlock *loracb)
+        _rcv = new UFO_TrsmDataControlBlock();
+
+    }
+    ~UFO_Lora_e220440T22D() {
+        if (!_rcv)
+        {
+            delete _rcv;
+        }
+    }
+
+    void SetTrsmCB(UFO_TrsmControlBlock *loracb)
     {
         _ctrlBlk = loracb;
     }
 
-
     //255 - broadcast
     void SetAddr(uint8_t a){
-        _conf._addl =  a;
+        _conf._targAddr._addl =  a;
     }
 
     void SetChannel(uint8_t c){
-        _conf._chan = constrain(c, 0, 83);
+        _conf._targAddr._chan = constrain(c, 0, 83);
+    }
+
+    void SetConfig(UFO_LoraConfigMinimal conf){
+        _conf = conf._settings;
+        _conf._targAddr._chan = constrain(_conf._targAddr._chan, 0, 83);
+        _conf._selfAddr._chan = constrain(_conf._selfAddr._chan, 0, 83);
+        _ctrlBlk = conf._ctrlBlk;
+        _callbackFunc = conf._callback;
     }
 
     virtual void Setup() final {
@@ -35,28 +53,80 @@ public:
         UFO_gpioConfig(UFO_LORA_M0_PIN, gpio_mode_t::GPIO_MODE_OUTPUT);
         UFO_gpioConfig(UFO_LORA_M1_PIN, gpio_mode_t::GPIO_MODE_OUTPUT);
 
-        Serial.println("lora:: Setup start");
+        Serial.println("lora:: Setup start check");
+       if (!_ctrlBlk)
+        {
+            Serial.println("\t\tError: _ctrlBlk is null");
+            while (true)
+            {
+                Serial.println("Critical error");
+                delay(500);
+            }
+            return;
+        }
+        if (!_ctrlBlk->Lock())
+        {
+            Serial.println("\t\tError: _ctrlBlk->lock is null");
+            while (true)
+            {
+                Serial.println("Critical error");
+                delay(500);
+            }
+            return;
+        }
         
-        _conf._addh = 0;
-        _conf._addl = 23;
-        _conf._chan = 4;
+        if (!_callbackFunc)
+        {
+            Serial.println("\t\tError: no _callbackFunc func");
+            // Serial.println("\t\t\tpassed...");
+            while (true)
+            {
+                Serial.println("Critical error");
+                delay(500);
+            }
+            return;
+        }
+
+        if (_conf._targAddr._chan > 84)
+        {
+            _conf._targAddr._chan = 20;
+            Serial.println("Incorrect chanel; Setted to 20");
+        }
+
+        if (Serial2.baudRate() != 9600)
+        {
+            Serial.println("br isnt 9600");
+        }
+        
+
+        Serial.println("lora:: Setup end check");
+
+        Serial.println("lora:: Setup start");
+
         _conf.GenCfg();
+        Serial.println("lora:: gen cfg");
 
         __SetMode(LORA_MODE_CMD);
+        delay(10);
+        Serial.println("lora:: set mode");
         
         __WriteCMD(_conf._cfg);
+        Serial.println("lora:: write cmd");
         __ReadCMD();
+        Serial.println("lora:: read cmd");
+
         delay(40);
 
         char c[] = { READ_CONFIGURATION, 0, 8};
         __WriteMSG(c, 3);
         __ReadCMD();            //todo (parse and compare)
+        Serial.println("lora:: read cfg");
 
         __SetMode(LORA_MODE_NORMAL);
         delay(40);
 
         // todo: check if 
-        Serial.println("lora:: Setup end1");
+        Serial.println("lora:: Setup end");
     }
     
     virtual void Iteration () final {
@@ -123,22 +193,34 @@ private:
         __WriteMSG(ccmd, 11);
     }
 
+
+    void __AddTargetAddr(char* s) {
+        //WARNING 
+        //_ctrlBlk->Lock() - should be locked before call this func
+        s[0] = _conf._targAddr._addh;
+        s[1] = _conf._targAddr._addl;
+        s[2] = _conf._targAddr._chan;
+    }
+
     int16_t __WriteBlock(){
         int16_t len = 0;
-        if (xSemaphoreTake(_ctrlBlk->_lock, 300))
+        if (xSemaphoreTake(_ctrlBlk->Lock(), 300))
         {
-            if (_ctrlBlk->_data._ready)
+            UFO_TrsmDataControlBlock dcb = _ctrlBlk->GetDataBlock();
+            if (dcb._ready)
             {
-                len = Serial2.write(_ctrlBlk->_data._payload, _ctrlBlk->_data._len);
-                if (len != _ctrlBlk->_data._len)
+                __AddTargetAddr(dcb._payload);
+ 
+                len = Serial2.write(dcb._payload, dcb._len);
+                if (len != dcb._len)
                 {
                     Serial.println("Error occurred during sending"); // add counter
                 }
-                _ctrlBlk->_data._ready = false;
-                _ctrlBlk->_data._len = 0;
+                dcb._ready = false;
+                dcb._len = 0;
                 // _ctrlBlk._data._lastCallTick = ...
             }
-            xSemaphoreGive(_ctrlBlk->_lock);
+            xSemaphoreGive(_ctrlBlk->Lock());
             delay(25);
             __WaitAUX_True(500);
         }
@@ -148,14 +230,14 @@ private:
 
     int16_t __WriteMSG(char* msg, uint32_t size){
         int16_t len = 0;
-        if (xSemaphoreTake(_ctrlBlk->_lock, 300))
+        if (xSemaphoreTake(_ctrlBlk->Lock(), 300))
         {
             len = Serial2.write(msg, size);
             if (len != size)
             {
                 Serial.println("Error occurred during sending"); // add counter
             }
-            xSemaphoreGive(_ctrlBlk->_lock);
+            xSemaphoreGive(_ctrlBlk->Lock());
             delay(25);
             __WaitAUX_True(500);
         }
@@ -163,14 +245,31 @@ private:
     }
 
     void __ReadMSG(){
-        int  i = Serial2.available();
-        if (i > 1)
+        // int  i = Serial2.available();
+        // if (i > 1)
+        // {
+        //     Serial.print("catch: ");
+        //     // __Func();
+        //     Serial.println(Serial2.readString());
+        //     __WaitAUX_True(1000);
+        // }
+        // __FlushPort();
+
+        memset(_rcv->_payload, 0,_rcv->_len);
+        uint8_t i = 0;
+        while (Serial2.available()>1)
         {
-            Serial.print("catch: ");
-            // __Func();
-            Serial.println(Serial2.readString());
-            __WaitAUX_True(1000);
+            _rcv->_payload[i] = Serial2.read();
+            ++i;
         }
+        _rcv->_len = i;
+        __WaitAUX_True(1000);
+        __FlushPort();
+        if (i > 0)
+        {
+            _callbackFunc(_rcv);
+        }
+        
     }
 
     void __ReadCMD(){
@@ -207,11 +306,11 @@ private:
             // todo
             break;
         default:
-                gpio_set_level(UFO_LORA_M0_PIN, 0);
-                gpio_set_level(UFO_LORA_M1_PIN, 0);
+            gpio_set_level(UFO_LORA_M0_PIN, 0);
+            gpio_set_level(UFO_LORA_M1_PIN, 0);
             break;
         }
-        delay(30);
+        delay(40);
         __WaitAUX_True(200);
     }
 

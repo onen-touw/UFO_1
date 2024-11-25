@@ -1,14 +1,16 @@
 #pragma once
 
-#include "UFO_Config.h"
 #include "UFO_Utils.h"
+#include "UFO_WiDTxCommon/UFO_TrsmStructDef.h"
 
-#define UFO_LORA_BUFFER_SIZE 180
+// #define UFO_LORA_BUFFER_SIZE 180
 #define UFO_LORA_M0_PIN     (gpio_num_t::GPIO_NUM_2)
 #define UFO_LORA_M1_PIN     (gpio_num_t::GPIO_NUM_5)
 #define UFO_LORA_AUX_PIN    (gpio_num_t::GPIO_NUM_4)
 
-#define UFO_LORA_BROADCAST 0xff;
+#define UFO_LORA_OFFSET_FOR_ADDR ((uint8_t)3)
+
+#define UFO_LORA_BROADCAST 0xff
 
 enum UFO_LoraResponseStatus : uint8_t
 {
@@ -123,20 +125,18 @@ enum UFO_LoraMode {
     LORA_MODE_CMD = 2,
 };
 
-struct UFO_LoraDataCB
-{
-    char _payload[UFO_LORA_BUFFER_SIZE];
-    uint8_t _len = 0;
-    uint8_t _errorCount = 0;
-    int32_t _lastCallTick = 0;
-    bool _ready = false;
-};
-
-struct UFO_LoraConfig
+struct UFO_LoraAddr
 {
     uint8_t _addh = UFO_LORA_BROADCAST;
     uint8_t _addl = UFO_LORA_BROADCAST;
     uint8_t _chan = 255;
+};
+
+
+struct UFO_LoraSettings
+{
+    UFO_LoraAddr _selfAddr;
+    UFO_LoraAddr _targAddr;
     UFO_LoraMode _mode = LORA_MODE_SLEEP;
     UFO_LoraUartBPS br = LORA_UART_BPS_9600;
     UFO_LoraParity prty = LORA_MODE_00_8N1;
@@ -148,12 +148,12 @@ struct UFO_LoraConfig
     UFO_LoraWOR_Period worperi = LORA_WOR_500_000;
     uint8_t crypthi = 0;
     uint8_t cryptlo = 0;
-    char _cfg[8];
+    char _cfg[8] = {};
 
     void GenCfg()
     {
-        _cfg[0] = _addh;
-        _cfg[1] = _addl;
+        _cfg[0] = _selfAddr._addh;
+        _cfg[1] = _selfAddr._addl;
 
         uint8_t
             tmp = 0b00000000;
@@ -170,90 +170,36 @@ struct UFO_LoraConfig
         _cfg[3] = tmp;
         tmp = 0b00000000;
 
-        if (_chan > 84)
+        if (_selfAddr._chan > 84)
         {
-            _chan = 83;
+           _selfAddr._chan = 83;
         }
-        if (_chan < 0)
+        if (_selfAddr._chan < 0)
         {
-            _chan = 0;
+            _selfAddr._chan = 0;
         }
 
-        _cfg[4] = (tmp | _chan);
+        _cfg[4] = (tmp | _selfAddr._chan);
 
         tmp = 0b00000000;
         tmp |= (rssi << 7);
-        //fixed transmition only
+        // fixed transmition only
         tmp |= (0b1 << 6);
-        //5th bit is reserved
+        // 5th bit is reserved
         tmp |= (0b0 << 4);
-        //3th bit is reserved
+        // 3th bit is reserved
         tmp |= (worperi);
         _cfg[5] = tmp;
 
-        _cfg[6] = crypthi;          // crypt hi
-        _cfg[7] = cryptlo;          // crypt lo
+        _cfg[6] = crypthi; // crypt hi
+        _cfg[7] = cryptlo; // crypt lo
     }
 };
 
-struct UFO_LoraControlBlock
-{
-    UFO_LoraDataCB _data;
-    SemaphoreHandle_t _lock;
 
-    bool Msg(const char *payload, int16_t size)
-    {
-        if (size > UFO_LORA_BUFFER_SIZE)
-        {
-            return false; // false if overflow
-        }
-        if (xSemaphoreTake(_lock, TickType_t(1000)) == pdTRUE)
-        {
-            memcpy(_data._payload, payload, size);
-            _data._len = size;
-            _data._ready = true;
-            xSemaphoreGive(_lock);
-        }
-        return true;
-    }
-
-    bool Msg(const char *payload)
-    {
-        int16_t l = strlen(payload);
-        if (l > UFO_LORA_BUFFER_SIZE)
-        {
-            return false; // false if overflow
-        }
-        if (xSemaphoreTake(_lock, TickType_t(1000)) == pdTRUE)
-        {
-            memcpy(_data._payload, payload, l);
-            _data._len = l;
-            _data._ready = true;
-            xSemaphoreGive(_lock);
-        }
-        return true;
-    }
-
-    UFO_LoraControlBlock()
-    {
-        _lock = xSemaphoreCreateMutex();
-        if (!_lock)
-        {
-            // set critical  [no mem]
-            Serial.print("critical error:: [xSemaphoreCreateMutex] no mem");
-            Serial.print(" ");
-            Serial.print(__FILE__);
-            Serial.print("\t");
-            Serial.println(__LINE__);
-        }
-        Serial.println("lock created");
-    }
-
-     ~UFO_LoraControlBlock()
-    {
-        if (_lock)
-        {
-            vSemaphoreDelete(_lock);
-        }
-    }
+struct UFO_LoraConfigMinimal{
+    UFO_LoraSettings _settings;
+    std::function<void(UFO_TrsmDataControlBlock* rcv)> _callback;
+    UFO_TrsmControlBlock* _ctrlBlk;
 };
+

@@ -2,8 +2,6 @@
 
 #include "UFO_Config.h"
 
-
-
 esp_err_t UFO_gpioConfig(gpio_num_t pin, gpio_mode_t mode){
 
     gpio_config_t conf = {

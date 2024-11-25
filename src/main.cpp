@@ -12,27 +12,31 @@
 
 
 //==============================================
-// #define UFO_TEST_LORA
-#define UFO_TEST_LORA_2
+#define TEST_WIFI
+#define UFO_TEST_SOCK_COMM
+// #define UFO_TEST_LORA_2
+// #define UFO_TEST_UART
 
-// #define UFO_TEST_UDP
 // #define UFO_TEST_SocketTask
-// #define TEST_WIFI
-// #define TEST_PID
-// #define TEST_COMPASS
-// #define TEST_MOTORS
-// #define TEST_BME
-// #define TEST_WHEELS
+#define TEST_WHEELS
 //==============================================
 
-#ifdef UFO_TEST_LORA
-// #include "LoRa_E220.h"
+#ifdef TEST_WIFI
+#include "UFO_WiFi_.h"
 #endif
 
+#ifdef UFO_TEST_SOCK_COMM
+#include "UFO_WiDTx/UFO_Socket.h"
+UFO_Socket sock;
+#endif
 
 #ifdef UFO_TEST_LORA_2
-#include "UFO_Lora_e220440T22D.h"
+#include "UFO_WiDTx/UFO_Lora.h"
+UFO_Lora_e220440T22D lora;
+UFO_TrsmControlBlock* txdata = new UFO_TrsmControlBlock();
+
 #endif
+
 
 #ifdef TEST_WHEELS
 #include "TEST_Wheel.h"
@@ -42,23 +46,6 @@
 #include "UFO_Socket.h"
 #endif
 
-#ifdef TEST_WIFI
-#include "UFO_WiFi_.h"
-#endif
-
-#ifdef UFO_TEST_UDP
-// #include "UFO_UDP.h"
-#include "UFO_Socket.h"
-#endif
-
-#ifdef TEST_BME
-#include "UFO_Sensors/UFO_Sensors_I2C/UFO_Baro.h"
-#define TEST_BME_NEW UFO_ENABLE /*UFO_DISABLE*/
-#endif
-
-#ifdef TEST_COMPASS
-#include "UFO_Sensors/UFO_Sensors_I2C/UFO_Compass.h"
-#endif
 
 
 #ifdef TEST_MOTORS
@@ -66,112 +53,60 @@ UFO_Control control;
 UFO_Motors motors;
 #endif
 
-#ifdef TEST_PID
-#include "UFO_math/UFO_PID.h"
-#include "UFO_Sensors/UFO_Sensors_I2C/UFO_IMU.h"
-#endif
 
 #endif //UFO_TEST_MODE
 //==============================================
-
-#ifdef UFO_TEST_SocketTask
-    SockTxData_t* txdata = new SockTxData_t();
-    RxDataHandler rxdh;
-
-#endif
-
-
-#ifdef TEST_BME
-UFO_Baro baro(&driver);
-UFO_BaroData_t baroData;
-#endif
-
-#ifdef TEST_COMPASS
-UFO_Compass compass(&driver);
-Vector3<float> comData = {};
-#endif
-
-#ifdef TEST_PID
-UFO_IMU imu(&driver);
-float
-    _kp = 10.f,
-    _ki = 0.f,
-    _kd = 0.f,
-    _ti = 0.1f;
-UFO_PID pitchPID(_kp, _ki, _kd, _ti);
-UFO_IMU_Data imuData;
-Madgwick maFilter;
-UFO_KalmanFilter adFilter;
-#endif
 
 #ifdef TEST_WIFI
 UFO_WiFi_ _wfd;
 #endif
 
-#ifdef UFO_TEST_UDP
-// UFO_UDP udp;
-UFO_Socket sock;
-SockTxData_t* txdata = new SockTxData_t();
+#ifdef UFO_TEST_SOCK_COMM
+    UFO_TrsmControlBlock* txdata = new UFO_TrsmControlBlock();
+    RxDataHandler rxdh;
+
+#endif
+#ifdef UFO_TEST_UART
+#include "UFO_Driver/UFO_Uart.h"
+UFO_Uart port1(2);
+char rxbf[255] = {};
+#endif
+
+
+int32_t p = 0, r = 0;
 int32_t _cnt = 0;
-RxDataHandler rxdh;
-#endif
-        int32_t p = 0, r=0;
-    int32_t _cnt = 0;
 
-#ifdef UFO_TEST_LORA
-LoRa_E220 lora(&Serial2, 4,2,5);
-#endif
-#ifdef UFO_TEST_LORA
-
-void printParameters(struct Configuration configuration) {
-	DEBUG_PRINTLN("----------------------------------------");
-
-	DEBUG_PRINT(F("HEAD : "));  DEBUG_PRINT(configuration.COMMAND, HEX);DEBUG_PRINT(" ");DEBUG_PRINT(configuration.STARTING_ADDRESS, HEX);DEBUG_PRINT(" ");DEBUG_PRINTLN(configuration.LENGHT, HEX);
-	DEBUG_PRINTLN(F(" "));
-	DEBUG_PRINT(F("AddH : "));  DEBUG_PRINTLN(configuration.ADDH, HEX);
-	DEBUG_PRINT(F("AddL : "));  DEBUG_PRINTLN(configuration.ADDL, HEX);
-	DEBUG_PRINTLN(F(" "));
-	DEBUG_PRINT(F("Chan : "));  DEBUG_PRINT(configuration.CHAN, DEC); DEBUG_PRINT(" -> "); DEBUG_PRINTLN(configuration.getChannelDescription());
-	DEBUG_PRINTLN(F(" "));
-	DEBUG_PRINT(F("SpeedParityBit     : "));  DEBUG_PRINT(configuration.SPED.uartParity, BIN);DEBUG_PRINT(" -> "); DEBUG_PRINTLN(configuration.SPED.getUARTParityDescription());
-	DEBUG_PRINT(F("SpeedUARTDatte     : "));  DEBUG_PRINT(configuration.SPED.uartBaudRate, BIN);DEBUG_PRINT(" -> "); DEBUG_PRINTLN(configuration.SPED.getUARTBaudRateDescription());
-	DEBUG_PRINT(F("SpeedAirDataRate   : "));  DEBUG_PRINT(configuration.SPED.airDataRate, BIN);DEBUG_PRINT(" -> "); DEBUG_PRINTLN(configuration.SPED.getAirDataRateDescription());
-	DEBUG_PRINTLN(F(" "));
-	DEBUG_PRINT(F("OptionSubPacketSett: "));  DEBUG_PRINT(configuration.OPTION.subPacketSetting, BIN);DEBUG_PRINT(" -> "); DEBUG_PRINTLN(configuration.OPTION.getSubPacketSetting());
-	DEBUG_PRINT(F("OptionTranPower    : "));  DEBUG_PRINT(configuration.OPTION.transmissionPower, BIN);DEBUG_PRINT(" -> "); DEBUG_PRINTLN(configuration.OPTION.getTransmissionPowerDescription());
-	DEBUG_PRINT(F("OptionRSSIAmbientNo: "));  DEBUG_PRINT(configuration.OPTION.RSSIAmbientNoise, BIN);DEBUG_PRINT(" -> "); DEBUG_PRINTLN(configuration.OPTION.getRSSIAmbientNoiseEnable());
-	DEBUG_PRINTLN(F(" "));
-	DEBUG_PRINT(F("TransModeWORPeriod : "));  DEBUG_PRINT(configuration.TRANSMISSION_MODE.WORPeriod, BIN);DEBUG_PRINT(" -> "); DEBUG_PRINTLN(configuration.TRANSMISSION_MODE.getWORPeriodByParamsDescription());
-	DEBUG_PRINT(F("TransModeEnableLBT : "));  DEBUG_PRINT(configuration.TRANSMISSION_MODE.enableLBT, BIN);DEBUG_PRINT(" -> "); DEBUG_PRINTLN(configuration.TRANSMISSION_MODE.getLBTEnableByteDescription());
-	DEBUG_PRINT(F("TransModeEnableRSSI: "));  DEBUG_PRINT(configuration.TRANSMISSION_MODE.enableRSSI, BIN);DEBUG_PRINT(" -> "); DEBUG_PRINTLN(configuration.TRANSMISSION_MODE.getRSSIEnableByteDescription());
-	DEBUG_PRINT(F("TransModeFixedTrans: "));  DEBUG_PRINT(configuration.TRANSMISSION_MODE.fixedTransmission, BIN);DEBUG_PRINT(" -> "); DEBUG_PRINTLN(configuration.TRANSMISSION_MODE.getFixedTransmissionDescription());
-
-
-	DEBUG_PRINTLN("----------------------------------------");
-}
-void printModuleInformation(struct ModuleInformation moduleInformation) {
-	Serial.println("----------------------------------------");
-	DEBUG_PRINT(F("HEAD: "));  DEBUG_PRINT(moduleInformation.COMMAND, HEX);DEBUG_PRINT(" ");DEBUG_PRINT(moduleInformation.STARTING_ADDRESS, HEX);DEBUG_PRINT(" ");DEBUG_PRINTLN(moduleInformation.LENGHT, DEC);
-
-	Serial.print(F("Model no.: "));  Serial.println(moduleInformation.model, HEX);
-	Serial.print(F("Version  : "));  Serial.println(moduleInformation.version, HEX);
-	Serial.print(F("Features : "));  Serial.println(moduleInformation.features, HEX);
-	Serial.println("----------------------------------------");
-
-}
-#endif
-
-#ifdef UFO_TEST_LORA_2
-    UFO_Lora_e220440T22D lora;
-#endif
 UFO_I2C_Driver driver;
 void setup()
 {
-    delay(100);
-    Serial.begin(115200);
 
-    Serial2.begin(9600);
-    Serial2.setTimeout(100);
+    delay(100);
+    // Serial.begin(115200);
+    std::cout << "stdcttest write without initialization\n";
+#ifdef UFO_TEST_UART
+
+    delay(100);
+    esp_err_t ee = port1.Init();
+    if (ee != ESP_OK)
+    {
+        std::cout << "some problems\n";
+    }
+    // port1.SendWithBreak("Hello world");
+    // port1.SendMsg("Hello world");
+    // port1.Write("Hello world");
+    // port1.Write("trash after hello world");
+
+    return;
+#else
+    Serial.begin(115200);
+#endif
+
+
+//     Serial2.begin(0);
+//     // Serial2.begin(9600);
+//     Serial2.setTimeout(100);
+// return;
+
 
     // Wire.begin();
     // Wire.setClock(400000); //400khz clock
@@ -180,42 +115,8 @@ void setup()
     Serial.println(err);
     Serial.print("inited ");
     Serial.println(driver.Initialized());
-
-
-#ifdef TEST_COMPASS
-    compass.InitSensor();
-#endif
-
-#ifdef TEST_BME
-    baro.InitSensor();
-    baro.SetTemperatureCompensation(-5.f);
-#endif
-#ifdef TEST_PID
-    adFilter.Set(0.5f, 0.5f, 0.8f);
-    imu.Calibrate();
-    maFilter.begin(0.2f);
-
-    //calibration
-    UFO_IMU_CalibrationData dataCal;
-    Serial.println("Keep IMU level.");
-    delay(5000);
-    imu.Calibrate();
-    dataCal = imu.GetOffsets();
-    Serial.println("Calibration done!");
-    Serial.println("Accel biases X/Y/Z: ");
-    Serial.print(dataCal._accelOffset._x);
-    Serial.print(", ");
-    Serial.print(dataCal._accelOffset._y);
-    Serial.print(", ");
-    Serial.println(dataCal._accelOffset._z);
-    Serial.println("Gyro biases X/Y/Z: ");
-    Serial.print(dataCal._gyroOffset._x);
-    Serial.print(", ");
-    Serial.print(dataCal._accelOffset._y);
-    Serial.print(", ");
-    Serial.println(dataCal._accelOffset._z);
-    delay(100);
-#endif
+    
+    // analogWriteFrequency(10000);
 
 #pragma region
     // test_cls.CreateItem(123);
@@ -269,16 +170,6 @@ void setup()
             Serial.printf("Found on adress: %d(dec); 0x%x(hex)\n" , address, address);
         }
     }
-#ifndef UFO_TEST_MODE
-    delay(200);
-    // UFO_CreateTask(UFO_TASKS_ID::TASK_WIFI_HANDL);
-    delay(100);
-    // UFO_CreateTask(UFO_TASKS_ID::TASK_IMU, &driver);
-    delay(100);
-    // UFO_CreateTask(UFO_TASKS_ID::TASK_BME);
-    delay(100);
-#endif
-    // motors.Begin();
 
 #ifdef TEST_WIFI
     err = _wfd.Init();
@@ -286,59 +177,7 @@ void setup()
 #endif
 
 
-#ifdef UFO_TEST_UDP
-    Serial.println("Test buffer");
-
-    String ss = "test_buffer";
-
-    // txdata->_lock = xSemaphoreCreateMutex();
-    // if (!txdata->_lock)
-    // {
-    //     // set critical  [no mem]
-    //     Serial.print("critical error:: [xSemaphoreCreateMutex] no mem");
-    //     Serial.print(" ");
-    //     Serial.print(__FILE__);
-    //     Serial.print("\t");
-    //     Serial.println(__LINE__);
-    // }
-    // Serial.println("lock created");
-
-    memcpy(txdata->_dcb._buff, ss.c_str(), ss.length());
-    txdata->_dcb._len = ss.length();
-
-    Serial.printf("string: %s, len: %d\n", txdata->_dcb._buff, txdata->_dcb._len);
-
-    Serial.println("Sock initializing");
-    sock.SetType(UFO_SOCK_SERVER);
-    sock.SetPort(6464);
-    sock.SetTrsmCB(txdata);
-
-    rxdh.Addhandler([&](RX_INDEX i, int32_t v){
-        switch (i)
-        {
-        case RX_IND_PITCH:
-            p=v;
-            break;
-        case RX_IND_ROLL: 
-            r=v;
-            break;
-        default:
-            break;
-        }
-
-
-    });
-
-    sock.SetRecvFuck([](SockDCB_t* rrcv){
-        String ss = (rrcv->_buff);
-        rxdh(ss);
-    });
-
-
-    sock.Setup();
-#endif
-
-#ifdef UFO_TEST_SocketTask
+#ifdef UFO_TEST_SOCK_COMM
     rxdh.Addhandler([&](RX_INDEX i, int32_t v){
         switch (i)
         {
@@ -353,221 +192,75 @@ void setup()
         }
         TestPinLoop(p,r);
     });
-
-
     UFO_SockConfigMinimal* sockConf = new UFO_SockConfigMinimal();
     sockConf->_type = UFO_SOCK_SERVER;
-    sockConf->_callbackFunc = [&](SockDCB_t* rrcv){
-        // String ss = (rrcv->_buff);
-        // rxdh(ss);
-        Serial.printf(">>%s\n", rrcv->_buff);
+    sockConf->_callbackFunc = [&](UFO_TrsmDataControlBlock* rrcv){
+        String ss = (rrcv->_payload);
+        rxdh(ss);
+        Serial.printf(">>%s\n", rrcv->_payload);
     };
     sockConf->_port = 6464;
     sockConf->_TxBuf = txdata;
     UFO_CreateTask( TASK_SOCKET, sockConf);
 
-
     TestPinSetup();
 #endif
-    // UFO_CreateTask( TASK_IMU, &driver);
 
 
-    // TestPinSetup();
 
-#ifdef UFO_TEST_LORA
-	// Startup all pins and UART
-	lora.begin();
-
-	ResponseStructContainer c;
-	c = lora.getConfiguration();
-	// It's important get configuration pointer before all other operation
-	Configuration configuration = *(Configuration*) c.data;
-	Serial.println(c.status.getResponseDescription());
-	Serial.println(c.status.code);
-	printParameters(configuration);
-
-
-    //	----------------------- DEFAULT TRANSPARENT -----------------------
-	configuration.ADDL = 0x03;  // First part of address
-	configuration.ADDH = 0x00; // Second part
-
-	configuration.CHAN = 23; // Communication channel
-
-	configuration.SPED.uartBaudRate = UART_BPS_9600; // Serial baud rate
-	configuration.SPED.airDataRate = AIR_DATA_RATE_010_24; // Air baud rate
-	configuration.SPED.uartParity = MODE_00_8N1; // Parity bit
-
-	configuration.OPTION.subPacketSetting = SPS_200_00; // Packet size
-	configuration.OPTION.RSSIAmbientNoise = RSSI_AMBIENT_NOISE_DISABLED; // Need to send special command
-	configuration.OPTION.transmissionPower = POWER_22; // Device power
-
-	configuration.TRANSMISSION_MODE.enableRSSI = RSSI_DISABLED; // Enable RSSI info
-	configuration.TRANSMISSION_MODE.fixedTransmission = FT_TRANSPARENT_TRANSMISSION; // Enable repeater mode
-	configuration.TRANSMISSION_MODE.enableLBT = LBT_DISABLED; // Check interference
-	configuration.TRANSMISSION_MODE.WORPeriod = WOR_2000_011; // WOR timing
-//	----------------------- DEFAULT TRANSPARENT WITH RSSI -----------------------
-// Set configuration changed and set to not hold the configuration
-	ResponseStatus rs = lora.setConfiguration(configuration, WRITE_CFG_PWR_DWN_SAVE);
-	Serial.println(rs.getResponseDescription());
-	Serial.println(rs.code);
-
-	c = lora.getConfiguration();
-	// It's important get configuration pointer before all other operation
-	configuration = *(Configuration*) c.data;
-	Serial.println(c.status.getResponseDescription());
-	Serial.println(c.status.code);
-
-	printParameters(configuration);
-	c.close();
-#endif
 
 
 
 #ifdef UFO_TEST_LORA_2
+    UFO_LoraConfigMinimal cfg;
+
+    UFO_LoraSettings sett;
+    sett._selfAddr._addh = 0;
+    sett._selfAddr._addl = 25;
+    sett._selfAddr._chan = 8;
+
+    sett._targAddr._addh = UFO_LORA_BROADCAST;
+    sett._targAddr._addl = UFO_LORA_BROADCAST;
+    sett._targAddr._chan = 10;
+    sett.adrt =  LORA_AIR_DATA_RATE_110_384;
+
+    cfg._ctrlBlk = txdata;
+    cfg._settings =sett;
+    cfg._callback = [](UFO_TrsmDataControlBlock* rcv){
+        Serial.printf("rcv: %s\n", rcv->_payload);
+    };
+
+    lora.SetConfig(cfg);
     lora.Setup();
 #endif
 }
 
 
-
 void loop()
 {   
 #ifdef UFO_TEST_LORA_2
+
+    txdata->Msg(UFO_LORA_OFFSET_FOR_ADDR, "hyatinka", 9);
+
     lora.Iteration();
-    delay(2000);
+    delay(50);
 #endif
 
-
-#ifdef UFO_TEST_LORA
-if (lora.available()>1) {
-	ResponseContainer rc = lora.receiveMessage();
-    Serial.println(rc.data);
-  }
-  String input = "Hey";
-  input += String(_cnt++);
-  ResponseStatus rs = lora.sendFixedMessage(0, 0x10, 23, input);
-#endif
-
-
-#ifdef TEST_COMPASS
-    compass();
-    comData = compass.Get();
-    Serial.print(">X:");
-    Serial.println(comData._x);
-    Serial.print(">Y:");
-    Serial.println(comData._y);
-    Serial.print(">Z:");
-    Serial.println(comData._z);
-    delay(20);
-#endif
-
-#ifdef TEST_BME
-    #if TEST_BME_NEW
-    baro.Update();
-    #else
-    baro();
-    #endif
-    baroData = baro.Get();
-
-    Serial.print(">T:");
-    Serial.println(baroData.Tempreture);
-    Serial.print(">P:");
-    Serial.println(baroData.Presure);
-    Serial.print(">ALT:");
-    Serial.println(baroData.Altitude);
-    delay(20);
-#endif
-
-#ifdef TEST_PID
-    if (Serial.available() > 1)
+#ifdef UFO_TEST_UART
+    if (port1.Available())
     {
-        char key = Serial.read();
-        float val = Serial.parseFloat();
-        switch (key)
-        {
-        case 'P':
-            Serial.print("SetP ");
-            Serial.println(val);
-            _kp = val;
-            break;
-        case 'I':
-            Serial.print("SetI ");
-            Serial.println(val);
-            _ki = val;
-            break;
-        case 'D':
-            Serial.print("SetD ");
-            Serial.println(val);
-            _kd = val;
-            break;
-        case 'T':
-            Serial.print("SetT ");
-            Serial.println(val);
-            _ti = val;
-            break;
-        case 'O':
-            Serial.println("Info");
-            Serial.print("P ");
-            Serial.print(_kp);
-            Serial.print("\tI ");
-            Serial.print(_ki);
-            Serial.print("\tD ");
-            Serial.print(_kd);
-            Serial.print("\tTi ");
-            Serial.println(_ti);
-            
-        default:
-            break;
-        }
-        pitchPID = UFO_PID(_kp, _ki, _kd, _ti);;
+        port1.Read(rxbf);
+        std::cout << rxbf << '\n';
     }
-    imu.Update();
-    imuData = imu.Get();
-    maFilter.updateIMU(
-        imuData._gyro._x,
-        imuData._gyro._y,
-        imuData._gyro._z,
-        imuData._accel._x,
-        imuData._accel._y,
-        imuData._accel._z);
-    float
-        q0 = maFilter.getQuatW(),
-        q1 = maFilter.getQuatX(),
-        q2 = maFilter.getQuatY(),
-        q3 = maFilter.getQuatZ();
-    // float roll = atan2(0.5f - q1 * q1 - q2 * q2, q0 * q1 + q2 * q3);
-    float pitch = asinf(-2.0f * (q1 * q3 - q0 * q2));
-    // float yaw = atan2f(q1 * q2 + q0 * q3, 0.5f - q2 * q2 - q3 * q3);
-    float val = adFilter(pitch) * 180 / M_PI;
-    Serial.print(">pitch:");
-    Serial.println(val); // <-------------- filter
-    Serial.print(">pitchPID:");
-    Serial.println(pitchPID.Calculate(0, val)); // <-------------- filter
-
-    delay(20);
-    // Serial.print(">yaw:");
-    // Serial.println(yaw* 180 / M_PI);
-    // Serial.print(">pitch:");
-    // Serial.println(pitch* 180 / M_PI);
-    // Serial.print(">roll:");
-    // Serial.println(roll* 180 / M_PI);
+    port1.SendMsg("hayhay\n");
+    delay(100);
+    
 #endif
 
-#ifdef UFO_TEST_UDP
-    String s(_cnt);
-    memcpy(txdata->_dcb._buff, s.c_str(), s.length());
-    txdata->_dcb._len = s.length();
-    txdata->_ready = true;
-    ++_cnt;
-    sock.Iteration();
-    TestPinLoop(p, r);
-    delay(10);
-#endif
-
-#ifdef UFO_TEST_SocketTask
+#ifdef UFO_TEST_SOCK_COMM
     String m(_cnt++);
     m+= "_cnt";
-    txdata->Msg(m.c_str());
+    txdata->Msg(m.c_str(), m.length());
     delay(20);
 #endif
 

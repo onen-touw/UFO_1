@@ -24,6 +24,8 @@ struct UFO_TaskDescriptor
     const uint32_t tUpdatePeriodMs; // delay(200) (into task)
     void (*tFunction)(void *);
     const uint8_t tCoreID;
+    TaskHandle_t _ptr;
+    // TaskHandle_t _ptr = nullptr;
 };
 
 
