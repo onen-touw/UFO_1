@@ -5,7 +5,7 @@
 enum UFO_TASKS_ID : uint8_t
 {
     NO_TASK,
-    TASK_WIFI_HANDL,
+    TASK_SOCKET,
     TASK_IMU,
     TASK_BME,
     TASK_CONTROL,
@@ -24,6 +24,8 @@ struct UFO_TaskDescriptor
     const uint32_t tUpdatePeriodMs; // delay(200) (into task)
     void (*tFunction)(void *);
     const uint8_t tCoreID;
+    TaskHandle_t _ptr;
+    // TaskHandle_t _ptr = nullptr;
 };
 
 

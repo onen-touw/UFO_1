@@ -1,63 +1,142 @@
 #include <Arduino.h>
-#include "WiFi.h"
-#include "AsyncUDP.h"
-#include "RxTxDataHandler.h"
 #include "UFO_Tasks/UFO_Task.h"
-#include "Adafruit_BME280.h"
 
-#include "UFO_Motors.h"
-// #include "UFO_Control.h"
-#include "UFO_Communication.h"
+#include "RxTxDataHandler.h"
+#include "UFO_Control.h"
 
-// UFO_Control control;
+#define UFO_TEST_MODE
+
+
+#ifdef UFO_TEST_MODE
+
+
+
+//==============================================
+#define TEST_WIFI
+#define UFO_TEST_SOCK_COMM
+// #define UFO_TEST_LORA_2
+// #define UFO_TEST_UART
+
+// #define UFO_TEST_SocketTask
+#define TEST_WHEELS
+//==============================================
+
+#ifdef TEST_WIFI
+#include "UFO_WiFi_.h"
+#endif
+
+#ifdef UFO_TEST_SOCK_COMM
+#include "UFO_WiDTx/UFO_Socket.h"
+UFO_Socket sock;
+#endif
+
+#ifdef UFO_TEST_LORA_2
+#include "UFO_WiDTx/UFO_Lora.h"
+UFO_Lora_e220440T22D lora;
+UFO_TrsmControlBlock* txdata = new UFO_TrsmControlBlock();
+
+#endif
+
+
+#ifdef TEST_WHEELS
+#include "TEST_Wheel.h"
+#endif
+
+#ifdef UFO_TEST_SocketTask
+#include "UFO_Socket.h"
+#endif
+
+
+
+#ifdef TEST_MOTORS
+UFO_Control control;
 UFO_Motors motors;
-// AsyncUDP udp;
-// RxDataHandler rxDH;
-UFO_PDOA test_cls;
-// DShotRMT motor01(MOTOR01_PIN, RMT_CHANNEL_0);
+#endif
+
+
+#endif //UFO_TEST_MODE
+//==============================================
+
+#ifdef TEST_WIFI
+UFO_WiFi_ _wfd;
+#endif
+
+#ifdef UFO_TEST_SOCK_COMM
+    UFO_TrsmControlBlock* txdata = new UFO_TrsmControlBlock();
+    RxDataHandler rxdh;
+
+#endif
+#ifdef UFO_TEST_UART
+#include "UFO_Driver/UFO_Uart.h"
+UFO_Uart port1(2);
+char rxbf[255] = {};
+#endif
+
+
+int32_t p = 0, r = 0;
+int32_t _cnt = 0;
+
+UFO_I2C_Driver driver;
 void setup()
 {
+
     delay(100);
-    Serial.begin(115200);
-    Wire.begin();
-    Wire.setClock(400000); //400khz clock
+    // Serial.begin(115200);
+    std::cout << "stdcttest write without initialization\n";
+#ifdef UFO_TEST_UART
 
-    test_cls.CreateItem(123);
-    test_cls.CreateItem(0.213f);
-    test_cls.CreateItem(true);
-    String txt = "string";
-    test_cls.CreateItem(txt);  
-    test_cls.CreatePacket();
-    String packet = test_cls.GetPacket();
-    for (size_t i = 0; i < packet.length(); i++)
+    delay(100);
+    esp_err_t ee = port1.Init();
+    if (ee != ESP_OK)
     {
-        Serial.print(static_cast<uint8_t>(packet[i]));
-        Serial.print("\t|");
-        Serial.print(packet[i]);
-        Serial.println("|");
+        std::cout << "some problems\n";
     }
-    
-    Serial.println();
-    motors.Begin();
+    // port1.SendWithBreak("Hello world");
+    // port1.SendMsg("Hello world");
+    // port1.Write("Hello world");
+    // port1.Write("trash after hello world");
 
+    return;
+#else
+    Serial.begin(115200);
+#endif
+
+
+//     Serial2.begin(0);
+//     // Serial2.begin(9600);
+//     Serial2.setTimeout(100);
+// return;
+
+
+    // Wire.begin();
+    // Wire.setClock(400000); //400khz clock
+
+    esp_err_t err = driver.Init(UFO_I2C_port::UFO_I2C_HARDWARE);
+    Serial.println(err);
+    Serial.print("inited ");
+    Serial.println(driver.Initialized());
+    
+    // analogWriteFrequency(10000);
+
+#pragma region
+    // test_cls.CreateItem(123);
+    // test_cls.CreateItem(0.213f);
+    // test_cls.CreateItem(true);
+    // String txt = "string";
+    // test_cls.CreateItem(txt);  
+    // test_cls.CreatePacket();
+    // String packet = test_cls.GetPacket();
+    // for (size_t i = 0; i < packet.length(); i++)
+    // {
+    //     Serial.print(static_cast<uint8_t>(packet[i]));
+    //     Serial.print("\t|");
+    //     Serial.print(packet[i]);
+    //     Serial.println("|");
+    // }
+    // Serial.println();
     delay(100);
     // control.Setup();
-    // if (motor01.begin(DSHOT300, true) != ESP_OK){
-    //     Serial.println("mamam");
-    // };
     delay(100);
-
-    for (int32_t address = 1; address < 127; address++)
-    {
-        Wire.beginTransmission(address);
-        uint8_t error = Wire.endTransmission();
-        if (error == 0)
-        {
-            Serial.print("\tfound:");
-            Serial.print(" ");
-            Serial.println(address);
-        }
-    }
 
     // rxDH.Addhandler([&](RX_INDEX i, int32_t v)
     //                 {
@@ -75,81 +154,124 @@ void setup()
     //     break;
     // } });
 
-    // WiFi.softAP(GTD_WIFI_OWN_NAME, GTD_WIFI_OWN_PASS, 1, 0, 1);
-    // WiFi.softAPConfig(GTD_WIFI_local_ip, GTD_WIFI_local_ip, IPAddress(255, 255, 255, 0));
-    // delay(100);
-    // Serial.println(WiFi.softAPIP());
 
     // if (!udp.listen(8080))
     // {
     //     Serial.println("err");
     // }
     // udp.onPacket(parsePacket);
-    delay(200);
+#pragma endregion
 
     Serial.println("Start");
-    // UFO_CreateTask(UFO_TASKS_ID::TASK_WIFI_HANDL);
-    delay(100);
-    // UFO_CreateTask(UFO_TASKS_ID::TASK_IMU);
-    delay(100);
-    // UFO_CreateTask(UFO_TASKS_ID::TASK_BME);
-    pinMode(4, OUTPUT);
-    pinMode(2, OUTPUT);
-
-
-}
-int dval = 48;
-void loop()
-{
-    if (Serial.available() > 1)
+    for (uint8_t address = 1; address < 127; ++address)
     {
-        char key = Serial.read();
-        int val = Serial.parseInt();
-        switch (key)
+        if (!driver.ZeroWrite(address))
         {
-        case 'V':
-            motors.SendAll(val);
+            Serial.printf("Found on adress: %d(dec); 0x%x(hex)\n" , address, address);
+        }
+    }
+
+#ifdef TEST_WIFI
+    err = _wfd.Init();
+    // err = _wfd.SetApIP("192.168.40.12");
+#endif
+
+
+#ifdef UFO_TEST_SOCK_COMM
+    rxdh.Addhandler([&](RX_INDEX i, int32_t v){
+        switch (i)
+        {
+        case RX_IND_PITCH:
+            p=v;
             break;
-        case 'A':
-            motors.Arm();
-            digitalWrite(4, 1);
-            digitalWrite(2, 1);
-            break;
-        case 'D':
-            motors.DisArm();
-            digitalWrite(4, 0);
-            digitalWrite(2, 0);
-            break;
-        case '0':
-            motors.Send(UFO_MOTOR_CHANEL_FRONT_LEFT, val);
-            break;
-        case '1':
-            motors.Send(UFO_MOTOR_CHANEL_BACK_RIGHT, val);
-            break;
-        case '2':
-            motors.Send(UFO_MOTOR_CHANEL_FRONT_RIGHT, val);
-            break;
-        case '3':
-            motors.Send(UFO_MOTOR_CHANEL_BACK_LEFT, val);
+        case RX_IND_ROLL: 
+            r=v;
             break;
         default:
             break;
         }
-    }
-    // motor01.send_dshot_value(dval);
-    // control.Iteration();
+        TestPinLoop(p,r);
+    });
+    UFO_SockConfigMinimal* sockConf = new UFO_SockConfigMinimal();
+    sockConf->_type = UFO_SOCK_SERVER;
+    sockConf->_callbackFunc = [&](UFO_TrsmDataControlBlock* rrcv){
+        String ss = (rrcv->_payload);
+        rxdh(ss);
+        Serial.printf(">>%s\n", rrcv->_payload);
+    };
+    sockConf->_port = 6464;
+    sockConf->_TxBuf = txdata;
+    UFO_CreateTask( TASK_SOCKET, sockConf);
+
+    TestPinSetup();
+#endif
+
+
+
+
+
+
+#ifdef UFO_TEST_LORA_2
+    UFO_LoraConfigMinimal cfg;
+
+    UFO_LoraSettings sett;
+    sett._selfAddr._addh = 0;
+    sett._selfAddr._addl = 25;
+    sett._selfAddr._chan = 8;
+
+    sett._targAddr._addh = UFO_LORA_BROADCAST;
+    sett._targAddr._addl = UFO_LORA_BROADCAST;
+    sett._targAddr._chan = 10;
+    sett.adrt =  LORA_AIR_DATA_RATE_110_384;
+
+    cfg._ctrlBlk = txdata;
+    cfg._settings =sett;
+    cfg._callback = [](UFO_TrsmDataControlBlock* rcv){
+        Serial.printf("rcv: %s\n", rcv->_payload);
+    };
+
+    lora.SetConfig(cfg);
+    lora.Setup();
+#endif
 }
 
+
+void loop()
+{   
+#ifdef UFO_TEST_LORA_2
+
+    txdata->Msg(UFO_LORA_OFFSET_FOR_ADDR, "hyatinka", 9);
+
+    lora.Iteration();
+    delay(50);
+#endif
+
+#ifdef UFO_TEST_UART
+    if (port1.Available())
+    {
+        port1.Read(rxbf);
+        std::cout << rxbf << '\n';
+    }
+    port1.SendMsg("hayhay\n");
+    delay(100);
+    
+#endif
+
+#ifdef UFO_TEST_SOCK_COMM
+    String m(_cnt++);
+    m+= "_cnt";
+    txdata->Msg(m.c_str(), m.length());
+    delay(20);
+#endif
+
+}
+
+#pragma region
 // #include <QMC5883LCompass.h>
 // #include "MPU6050_6Axis_MotionApps20.h"
 // #include "UFO_Tasks/UFO_Task.h"
 
 // QMC5883LCompass compass;
-// // MPU6050 mpu;
-// // uint8_t fifoBuffer[64]; // FIFO storage buffer
-// // Quaternion q;       // [w, x, y, z]         quaternion container
-// // VectorFloat gravity; // [x, y, z]            gravity vector
-// // float ypr[3];        // [yaw, pitch, roll]   yaw/pitch/roll container and gravity vector
 
 // void setup()
 // {
@@ -158,34 +280,10 @@ void loop()
 //     // compass.init();
 //     // Serial.println("CALIBRATING. Keep moving your sensor...");
 //     // compass.calibrate();
-
-//     //   Serial.println("DONE. Copy the lines below and paste it into your projects sketch.);");
-//     //   Serial.println();
-//     //   Serial.print("compass.setCalibrationOffsets(");
-//     //   Serial.print(compass.getCalibrationOffset(0));
-//     //   Serial.print(", ");
-//     //   Serial.print(compass.getCalibrationOffset(1));
-//     //   Serial.print(", ");
-//     //   Serial.print(compass.getCalibrationOffset(2));
-//     //   Serial.println(");");
-//     //   Serial.print("compass.setCalibrationScales(");
-//     //   Serial.print(compass.getCalibrationScale(0));
-//     //   Serial.print(", ");
-//     //   Serial.print(compass.getCalibrationScale(1));
-//     //   Serial.print(", ");
-//     //   Serial.print(compass.getCalibrationScale(2));
-//     //   Serial.println(");");
-//     // delay(5000);
 //     compass.setMagneticDeclination(12, 0);
 //     compass.setCalibrationOffsets(-66.00, 36.00, -446.00);
 //     compass.setCalibrationScales(1.03, 0.96, 1.01);
 
-//     // mpu.initialize();
-//     // mpu.CalibrateAccel();
-//     // mpu.CalibrateGyro();
-//     // mpu.dmpInitialize();
-//     // mpu.setDMPEnabled(true);
-//     UFO_CreateTask(UFO_TASKS_ID::TASK_IMU);
 // }
 // float hh = 0;
 
@@ -228,17 +326,6 @@ void loop()
 // void loop()
 // {
 
-//     // mpu.dmpGetCurrentFIFOPacket(fifoBuffer);
-//     // // mpu.getFIFOBytes(fifoBuffer, packetSize);
-//     // mpu.dmpGetQuaternion(&q, fifoBuffer);
-//     // mpu.dmpGetGravity(&gravity, &q);
-//     // mpu.dmpGetYawPitchRoll(ypr, &q, &gravity);
-//     // Serial.print("ypr\t");
-//     // Serial.print(ypr[0] * 180 / M_PI);
-//     // Serial.print("\t");
-//     // Serial.print(ypr[1] * 180 / M_PI);
-//     // Serial.print("\t");
-//     // Serial.println(ypr[2] * 180 / M_PI);
 
 //     // int x, y, z;
 //     // // // Read compass values
@@ -269,3 +356,4 @@ void loop()
 
 //     // delay(50);
 // }
+#pragma endregion

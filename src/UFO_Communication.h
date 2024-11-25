@@ -48,7 +48,7 @@ struct UFO_CommunicationTimePoints {
 enum UFO_CommnunicationCmdList:uint8_t {
     //todo do commands like in msp
 };
-// PDOA 
+// PDOA (protocol data on air)
 enum UFO_PDOA_RESULT {
     SUC,
     UNDEF,
@@ -186,7 +186,7 @@ public:
         Serial.println(packLenth);
         
         
-        _packet+= "0000";
+        _packet+= "0000";       // todo calculate checksum
         _ready = true;
         return SUC;
     }
