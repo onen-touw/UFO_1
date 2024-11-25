@@ -12,12 +12,13 @@
 
 
 //==============================================
-// #define TEST_WIFI
+#define TEST_WIFI
 #define UFO_TEST_SOCK_COMM
-#define UFO_TEST_LORA_2
+// #define UFO_TEST_LORA_2
+// #define UFO_TEST_UART
 
 // #define UFO_TEST_SocketTask
-// #define TEST_WHEELS
+#define TEST_WHEELS
 //==============================================
 
 #ifdef TEST_WIFI
@@ -60,29 +61,52 @@ UFO_Motors motors;
 UFO_WiFi_ _wfd;
 #endif
 
-#ifdef UFO_TEST_SocketTask
-    SockTxData_t* txdata = new SockTxData_t();
+#ifdef UFO_TEST_SOCK_COMM
+    UFO_TrsmControlBlock* txdata = new UFO_TrsmControlBlock();
     RxDataHandler rxdh;
 
 #endif
+#ifdef UFO_TEST_UART
+#include "UFO_Driver/UFO_Uart.h"
+UFO_Uart port1(2);
+char rxbf[255] = {};
+#endif
+
 
 int32_t p = 0, r = 0;
 int32_t _cnt = 0;
 
-
-
 UFO_I2C_Driver driver;
 void setup()
 {
-    std::cout << "stdcttest write without initialization\n";
-    printf("pftest write without initialization\n");
-    delay(100);
-    Serial.begin(115200);
-    std::cout << "stdcttest write without initialization\n";
-    printf("pftest write without initialization\n");
 
-    Serial2.begin(9600);
-    Serial2.setTimeout(100);
+    delay(100);
+    // Serial.begin(115200);
+    std::cout << "stdcttest write without initialization\n";
+#ifdef UFO_TEST_UART
+
+    delay(100);
+    esp_err_t ee = port1.Init();
+    if (ee != ESP_OK)
+    {
+        std::cout << "some problems\n";
+    }
+    // port1.SendWithBreak("Hello world");
+    // port1.SendMsg("Hello world");
+    // port1.Write("Hello world");
+    // port1.Write("trash after hello world");
+
+    return;
+#else
+    Serial.begin(115200);
+#endif
+
+
+//     Serial2.begin(0);
+//     // Serial2.begin(9600);
+//     Serial2.setTimeout(100);
+// return;
+
 
     // Wire.begin();
     // Wire.setClock(400000); //400khz clock
@@ -91,7 +115,8 @@ void setup()
     Serial.println(err);
     Serial.print("inited ");
     Serial.println(driver.Initialized());
-
+    
+    // analogWriteFrequency(10000);
 
 #pragma region
     // test_cls.CreateItem(123);
@@ -152,7 +177,7 @@ void setup()
 #endif
 
 
-#ifdef UFO_TEST_SocketTask
+#ifdef UFO_TEST_SOCK_COMM
     rxdh.Addhandler([&](RX_INDEX i, int32_t v){
         switch (i)
         {
@@ -169,10 +194,10 @@ void setup()
     });
     UFO_SockConfigMinimal* sockConf = new UFO_SockConfigMinimal();
     sockConf->_type = UFO_SOCK_SERVER;
-    sockConf->_callbackFunc = [&](SockDCB_t* rrcv){
-        // String ss = (rrcv->_buff);
-        // rxdh(ss);
-        Serial.printf(">>%s\n", rrcv->_buff);
+    sockConf->_callbackFunc = [&](UFO_TrsmDataControlBlock* rrcv){
+        String ss = (rrcv->_payload);
+        rxdh(ss);
+        Serial.printf(">>%s\n", rrcv->_payload);
     };
     sockConf->_port = 6464;
     sockConf->_TxBuf = txdata;
@@ -180,7 +205,6 @@ void setup()
 
     TestPinSetup();
 #endif
-    // TestPinSetup();
 
 
 
@@ -222,11 +246,21 @@ void loop()
     delay(50);
 #endif
 
+#ifdef UFO_TEST_UART
+    if (port1.Available())
+    {
+        port1.Read(rxbf);
+        std::cout << rxbf << '\n';
+    }
+    port1.SendMsg("hayhay\n");
+    delay(100);
+    
+#endif
 
-#ifdef UFO_TEST_SocketTask
+#ifdef UFO_TEST_SOCK_COMM
     String m(_cnt++);
     m+= "_cnt";
-    txdata->Msg(m.c_str());
+    txdata->Msg(m.c_str(), m.length());
     delay(20);
 #endif
 
