@@ -30,7 +30,7 @@
 
 #define QMC5883L_WHOAMI_VALUE	0xFF
 
-enum UFO_CompassMode : uint8_t
+enum class UFO_CompassMode : uint8_t
 {
     COMPASS_MODE_STANDBY = 0b00,
     COMPASS_MODE_CONTINUOUS = 0b01,
@@ -38,7 +38,7 @@ enum UFO_CompassMode : uint8_t
 };
 
 // ODR
-enum UFO_CompassOutputDataRate : uint8_t
+enum class UFO_CompassOutputDataRate : uint8_t
 {
     COMPASS_ODR_10HZ = 0b00,
     COMPASS_ODR_50HZ = 0b01,
@@ -47,14 +47,14 @@ enum UFO_CompassOutputDataRate : uint8_t
     COMPASS_ODR_DEFAULT = COMPASS_ODR_200HZ,
 };
 // RNG
-enum UFO_CompassFullScaleRange : uint8_t
+enum class UFO_CompassFullScaleRange : uint8_t
 {
     COMPASS_RNG_2G = 0b00,
     COMPASS_RNG_8G = 0b01,
     COMPASS_RNG_DEFAULT = COMPASS_RNG_8G,
 };
 // OSR
-enum UFO_CompassOverSamplingRatio : uint8_t
+enum class UFO_CompassOverSamplingRatio : uint8_t
 {
     COMPASS_OSR_512 = 0b00,
     COMPASS_OSR_DEFAULT = COMPASS_OSR_512,
@@ -118,12 +118,17 @@ public:
         SetConfig();
     }
 
-    void SetConfig(UFO_CompassMode mode = COMPASS_MODE_DEFAULT,
-                   UFO_CompassOutputDataRate ODR = COMPASS_ODR_DEFAULT,
-                   UFO_CompassFullScaleRange RNG = COMPASS_RNG_DEFAULT,
-                   UFO_CompassOverSamplingRatio OSR = COMPASS_OSR_DEFAULT)
+    void SetConfig(UFO_CompassMode mode = UFO_CompassMode::COMPASS_MODE_DEFAULT,
+                   UFO_CompassOutputDataRate ODR = UFO_CompassOutputDataRate::COMPASS_ODR_DEFAULT,
+                   UFO_CompassFullScaleRange RNG = UFO_CompassFullScaleRange::COMPASS_RNG_DEFAULT,
+                   UFO_CompassOverSamplingRatio OSR = UFO_CompassOverSamplingRatio::COMPASS_OSR_DEFAULT)
     {
-        uint8_t md = (OSR << 6 | RNG << 4 | ODR << 2 | mode);  // QMC5883L_CTRL1:|OSR|RNG|ODR|MODE|
+        uint8_t md = (
+            static_cast<uint8_t>(OSR) << 6 | 
+            static_cast<uint8_t>(RNG) << 4 | 
+            static_cast<uint8_t>(ODR) << 2 | 
+            static_cast<uint8_t>(mode)
+        );  // QMC5883L_CTRL1:|OSR|RNG|ODR|MODE|
         this->Write8(QMC5883L_CTRL1, md);
     }
 
@@ -153,7 +158,7 @@ public:
     }
 
     
-void Ccalibrate() 
+    void Calibrate() 
 {
     #if UFO_COMPASS_ADVANCED_CALIBRATION
         Serial.println("UFO_COMPASS_ADVANCED_CALIBRATION currently not implemented");

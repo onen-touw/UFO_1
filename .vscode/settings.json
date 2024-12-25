@@ -68,6 +68,7 @@
         "semphr.h": "c",
         "iostream": "cpp",
         "esp32-hal-rgb-led.h": "c",
-        "task.h": "c"
+        "task.h": "c",
+        "freertos.h": "c"
     }
 }

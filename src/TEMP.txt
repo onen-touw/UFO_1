@@ -1,0 +1,142 @@
+
+
+
+// #include <Arduino.h>
+#include "UFO_Config.h"
+
+#include "UFO_Driver/UFO_ESC.h"
+#ifdef UFO_TEST_MODE
+
+#include "UFO_Tasks/UFO_Task.h"
+
+
+
+//==============================================
+#define TEST_WIFI
+#define UFO_TEST_SOCK_COMM
+#define UFO_TEST_INA3221
+//==============================================
+
+#ifdef TEST_WIFI
+#include "UFO_WiFi.h"
+#endif
+
+#ifdef UFO_TEST_SOCK_COMM
+#include "UFO_WiDTx/UFO_Socket.h"
+#endif
+
+
+
+
+#ifdef TEST_WHEELS
+#include "TEST_Wheel.h"
+#endif
+
+
+
+
+
+
+#ifdef UFO_TEST_SOCK_COMM
+    UFO_TrsmControlBlock* txdata =nullptr;
+#endif
+
+
+#ifdef UFO_TEST_INA3221
+#include "UFO_Sensors/UFO_Sensors_I2C/UFO_INA3221.h"
+#define INA3221_TAG "_INA0"
+#define ESP_TAG "ESP1"
+#endif
+
+
+UFO_I2C_Driver driver;
+
+#ifdef UFO_TEST_INA3221
+UFO_INA3221 ina(&driver);
+#endif
+
+
+void setup()
+{
+    setCpuFrequencyMhz(240);
+    Serial.begin(115200);
+
+    esp_err_t err = driver.Init(UFO_I2C_port::UFO_I2C_HARDWARE);
+    Serial.println(err);
+    Serial.print("inited ");
+    Serial.println(driver.Initialized());
+    
+    Serial.println("Start");
+    for (uint8_t address = 1; address < 127; ++address)
+    {
+        if (!driver.ZeroWrite(address))
+        {
+            Serial.printf("Found on adress: %d(dec); 0x%x(hex)\n" , address, address);
+        }
+    }
+
+#ifdef TEST_WIFI
+    UFO_WiFi_t wf = UFO_WiFi_GetInstance(); 
+    wf.Init();
+#endif
+
+#ifdef UFO_TEST_SOCK_COMM
+    txdata = new UFO_TrsmControlBlock();
+    UFO_SockConfigMinimal* sockConf = new UFO_SockConfigMinimal();
+    sockConf->_type = UFO_SOCK_SERVER;
+    sockConf->_callbackFunc = [&](UFO_TrsmDataControlBlock* rrcv){
+        // String ss = (rrcv->_payload);
+        // rxdh(ss);
+        Serial.printf(">>%s\n", rrcv->_payload);
+    };
+    sockConf->_port = 6464;
+    sockConf->_TxBuf = txdata;
+    UFO_CreateTask(TASK_SOCKET, sockConf);
+    
+#endif
+
+// std::cout <<"\x1B[31mTexting\033[0m\n";
+// std::cout <<"\x1B[1;41;37mTexting\033[0m\n";
+// std::cout <<"\033[1;41;33mTexting\033[0m\n";
+// UFO_ErrorGeneric("tg", "errmsg");
+
+#ifdef UFO_TEST_INA3221
+    ina.InitSensor();
+#endif
+}
+
+
+void loop()
+{   
+#ifdef UFO_TEST_INA3221
+    String s;
+    ina.Update();
+    UFO_INA3221_ChannelData d;
+    for (size_t i = 0; i < 3; i++)
+    {
+        s = ESP_TAG;
+        s += INA3221_TAG;
+        s += (i + 1);
+        d = ina.Get(i);
+        s += '@';
+        s += d._timestamp;
+        s += '=';
+        s += d._busVolt;
+        s += ',';
+        s += d._shuntVolt;
+        s += ',';
+        s += (d._current / 1000.f);
+
+        if (!txdata->Msg(s.c_str(), s.length()))    
+        {
+            Serial.println("error");
+        }
+        delay(20);
+        Serial.println(s);
+    }
+#endif
+
+
+}
+
+#endif

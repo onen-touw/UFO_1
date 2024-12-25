@@ -59,7 +59,7 @@ public:
         {
             return false; // false if overflow
         }
-        if (xSemaphoreTake(_lock, TickType_t(1000)) == pdTRUE)
+        if (xSemaphoreTake(_lock, TickType_t(100)) == pdTRUE)
         {
             memcpy((_data._payload + offset), payload, size);
             _data._len = size + offset;
@@ -76,7 +76,7 @@ public:
         {
             return false; // false if overflow
         }
-        if (xSemaphoreTake(_lock, TickType_t(1000)) == pdTRUE)
+        if (xSemaphoreTake(_lock, TickType_t(100)) == pdTRUE)
         {
             memcpy(_data._payload, payload, size);
             _data._len = size;
@@ -94,7 +94,7 @@ public:
         {
             return false; // false if overflow
         }
-        if (xSemaphoreTake(_lock, TickType_t(1000)) == pdTRUE)
+        if (xSemaphoreTake(_lock, TickType_t(100)) == pdTRUE)
         {
             memcpy(_data._payload, payload, l);
             _data._len = l;

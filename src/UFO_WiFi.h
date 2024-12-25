@@ -2,9 +2,8 @@
 #include "UFO_Config.h"
 #include "esp_wifi.h"
 
-static bool ___UFO_wf_constructed = false;              // only one UFO_wifi object can exist 
-static EventGroupHandle_t _eGrp = nullptr;
-static esp_netif_t *_netiff;
+// static bool ___UFO_wf_constructed = false;              // only one UFO_wifi object can exist 
+
 
 #define WIFI_CONNECTED_BIT  0b00001
 #define WIFI_FAIL_BIT       0b00010
@@ -14,7 +13,10 @@ static esp_netif_t *_netiff;
 #define UFO_WIFI_DEF_MAINDNS_SERVER UFO_WIFI_DEF_GW_ADDR
 #define UFO_WIFI_DEF_BCP_DNS_SERVER UFO_WIFI_DEF_GW_ADDR
 
-class UFO_WiFi_
+class UFO_WiFi_SingletoneImpl;
+using UFO_WiFi_t = UFO_WiFi_SingletoneImpl&; 
+
+class UFO_WiFi_SingletoneImpl
 {
 private:
     void* pass = nullptr; // void* for a while 
@@ -23,23 +25,36 @@ private:
     wifi_config_t _conf = {}; 
     wifi_mode_t _if =  wifi_mode_t::WIFI_MODE_AP;     //wifi interface::: null === auto (start like ap, if error -> sta) / sta === station / ap === access point 
     
-    // uint16_t ___a;                                      // may be it will replace _eGrp;
     bool _driverStarted = false;
+    static esp_netif_t *_netiff;
+    static EventGroupHandle_t _eGrp;
     uint8_t _reconC = 0;
     
+    UFO_WiFi_SingletoneImpl() {
+        _driverStarted = false;
+    }
 
 public:
-    UFO_WiFi_() {
-    assert(!___UFO_wf_constructed);     
-        ___UFO_wf_constructed = true;
+    UFO_WiFi_SingletoneImpl(const UFO_WiFi_SingletoneImpl&) = delete;
+    UFO_WiFi_SingletoneImpl& operator = (const UFO_WiFi_SingletoneImpl&) = delete;
+    ~UFO_WiFi_SingletoneImpl() {
+        Deinit();
     }
 
-    ~UFO_WiFi_() {
-        ___UFO_wf_constructed = false;
-    }
+    static bool _status;
 
+    static UFO_WiFi_SingletoneImpl& GetInstance(){
+        static UFO_WiFi_SingletoneImpl w;
+        return w;
+    }
 
     esp_err_t Init(){
+
+        if (_driverStarted)
+        {
+            return ESP_FAIL;
+        }
+
         esp_err_t err = ESP_OK;
         // if (_if == null) { _if = sta .. "try connect" .. _if = ap .. "start ap"}
         esp_ip4_addr_t* __add;
@@ -122,7 +137,13 @@ public:
 
             Serial.print("Initing err code:\t");
             Serial.println(err);
+            if (err!= ESP_OK)
+            {
+                return err;
+            }
+            _driverStarted = true;
             return err;
+
         }
         // todo 
         _if = WIFI_MODE_STA; 
@@ -145,6 +166,21 @@ public:
         _if = WIFI_MODE_AP;
         __InitAP();
         err = __DriverInit();
+        return err;
+    }
+
+    esp_err_t Deinit(){
+        esp_err_t err = ESP_OK;
+        if (_driverStarted)
+        {
+            _driverStarted = false;
+            err = __DriverDeinit();
+            if (err != ESP_OK)
+            {
+                // set critical
+                std::cout << "WiFi driver error\n";
+            }
+        }
         return err;
     }
 
@@ -371,7 +407,7 @@ private:
     }
 
 
-    esp_err_t __DriverDeinit(){
+    static esp_err_t __DriverDeinit(){
         esp_err_t err = ESP_OK;
         err = esp_wifi_stop();
         esp_event_handler_unregister(WIFI_EVENT, ESP_EVENT_ANY_ID, __EventHandler);
@@ -381,7 +417,6 @@ private:
         esp_event_loop_delete_default();
         esp_netif_deinit();
         vEventGroupDelete(_eGrp);
-        _driverStarted = false;
         return err;
     }
 
@@ -391,10 +426,11 @@ private:
         {
             if (id == WIFI_EVENT_STA_DISCONNECTED)
             {
-                esp_wifi_connect();
                 ++reconC;
                 Serial.print("Disconnected\t ReconC= ");
                 Serial.println(reconC);
+                esp_wifi_connect();
+                delay(100);
             }
             else if (id == WIFI_EVENT_STA_START)
             { 
@@ -405,16 +441,20 @@ private:
                 // xEventGroupSetBits(_eGrp, WIFI_CONNECTED_BIT);
                 Serial.print("Connected");
                 Serial.println(reconC);
+                reconC = 0;
             }
             else if  (id == WIFI_EVENT_AP_STACONNECTED)
             {
                 wifi_event_ap_staconnected_t *event = reinterpret_cast<wifi_event_ap_staconnected_t *>(edat);
                 Serial.printf("station " MACSTR " join, AID=%d\n", MAC2STR(event->mac), event->aid);
+                _status = true;
+
             }
             else if (id == WIFI_EVENT_AP_STADISCONNECTED)
             {
                 wifi_event_ap_stadisconnected_t *event = reinterpret_cast<wifi_event_ap_stadisconnected_t *>(edat);
                 Serial.printf("station " MACSTR " leave, AID=%d\n", MAC2STR(event->mac), event->aid);
+                _status = false;
             }
         }
         else if(base == IP_EVENT){
@@ -423,23 +463,21 @@ private:
                 xEventGroupSetBits(_eGrp, WIFI_CONNECTED_BIT);
                 reconC = 0;
                 ip_event_got_ip_t* event = reinterpret_cast<ip_event_got_ip_t*>(edat);
-                // Serial.print("if_if\t");
-                // Serial.println(event->if_index);
-                // Serial.print("ip_address\t");
-                // Serial.println(event->ip_info.ip.addr);
-                // Serial.print("ip_gw\t");
-                // Serial.println(event->ip_info.gw.addr);
-                // Serial.print("ip_netmask\t");
-                // Serial.println(event->ip_info.netmask.addr);
+                Serial.print("if_if\t");
+                Serial.println(event->if_index);
+                Serial.print("ip_address\t");
+                Serial.println(event->ip_info.ip.addr);
+                Serial.print("ip_gw\t");
+                Serial.println(event->ip_info.gw.addr);
+                Serial.print("ip_netmask\t");
+                Serial.println(event->ip_info.netmask.addr);
             }
         }
     }
 };
 
+esp_netif_t *UFO_WiFi_SingletoneImpl::_netiff= nullptr; 
+EventGroupHandle_t UFO_WiFi_SingletoneImpl::_eGrp= nullptr; 
+#define UFO_WiFi_GetInstance() (UFO_WiFi_SingletoneImpl::GetInstance())
 
-
-
-//  uint8_t mac[8];
-//         if(esp_efuse_mac_get_default(mac) == ESP_OK){
-//             esp_base_mac_addr_set(mac);
-//         }
+bool UFO_WiFi_SingletoneImpl::_status = false; 

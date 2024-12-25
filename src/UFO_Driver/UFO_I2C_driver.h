@@ -12,7 +12,7 @@
 #define UFO_I2C_MAX_FREQ 1000000UL
 #define UFO_I2C_TIMEOUT 0xFFFFF
 
-enum UFO_I2C_port : uint8_t
+enum class UFO_I2C_port : uint8_t
 {
     UFO_I2C_HARDWARE,
     UFO_I2C_SOFTWARE,
@@ -45,10 +45,12 @@ public:
             vSemaphoreDelete(_lock);
         }
     }
+    
     bool Initialized()
     {
         return _inited;
     }
+
     esp_err_t Init(UFO_I2C_port port, uint8_t pinSDA = UFO_I2C_HARDWARE_SDA, uint8_t pinSCL = UFO_I2C_HARDWARE_SCL)
     {
         esp_err_t ret = ESP_OK;
@@ -57,7 +59,7 @@ public:
             return ret;
         }
 
-        if (port == UFO_I2C_HARDWARE)
+        if (port == UFO_I2C_port::UFO_I2C_HARDWARE)
         {
             pinSDA = UFO_I2C_HARDWARE_SDA;
             pinSCL = UFO_I2C_HARDWARE_SCL;

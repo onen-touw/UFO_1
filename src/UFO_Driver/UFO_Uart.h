@@ -348,8 +348,9 @@ private:
             _pins._tx = static_cast<gpio_num_t>(U0TXD_GPIO_NUM);
             break;
         case UART_NUM_1:
-            _pins._rx = static_cast<gpio_num_t>(U1RXD_GPIO_NUM);
-            _pins._tx = static_cast<gpio_num_t>(U1TXD_GPIO_NUM);
+            return ESP_FAIL; // temp 
+            // _pins._rx = static_cast<gpio_num_t>(U1RXD_GPIO_NUM);    16,17
+            // _pins._tx = static_cast<gpio_num_t>(U1TXD_GPIO_NUM);
             break;
         case UART_NUM_2:
             _pins._rx = static_cast<gpio_num_t>(U2RXD_GPIO_NUM);
@@ -363,6 +364,7 @@ private:
         return e;
     }
 
+#ifdef UFO_UART_EVENTS
     static void __EventTask(void* arg){
         // pointer
         UFO_Uart* u = reinterpret_cast<UFO_Uart*>(arg);
@@ -386,4 +388,6 @@ private:
             }
         }
     }
+#endif
+    
 };

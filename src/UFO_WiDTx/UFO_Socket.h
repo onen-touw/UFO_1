@@ -193,8 +193,8 @@ public:
 
         // Set timeout
         struct timeval timeout;
-        timeout.tv_sec = 1;         // blocking lwip_recvfrom time
-        timeout.tv_usec = 0;      // 100ms (0.1s)
+        timeout.tv_sec = 0;         // blocking lwip_recvfrom time
+        timeout.tv_usec = 5000;      // 5 ms
         lwip_setsockopt(_sock, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout));
 
         if (_sType == UFO_SOCK_SERVER)
@@ -213,15 +213,13 @@ public:
     }
 
     virtual void Iteration() final {
-    if (xSemaphoreTake(_trsm->Lock(), TickType_t(1000)) == pdTRUE)
+    if (xSemaphoreTake(_trsm->Lock(), TickType_t(100)) == pdTRUE)
     {
         // Serial.println("Sem");
         // debug
-        UFO_TrsmDataControlBlock _dcb = _trsm->GetDataBlock();
+        UFO_TrsmDataControlBlock& _dcb = _trsm->GetDataBlock();
         if (_dcb._ready)
         {
-            // Serial.println("Sem->ready");
-            // send
             int e = 0;
             if (_sType == UFO_SOCK_SERVER)
             {
@@ -230,7 +228,7 @@ public:
             else{
                 e = lwip_sendto(_sock, _dcb._payload, _dcb._len, 0, (struct sockaddr *)&_destAddr, sizeof(_destAddr));
             }            
-
+            Serial.println("sended");
             // if (PC_debug) {
             // lwip_sendto(...,_pcAddr);
             // }
@@ -263,8 +261,6 @@ public:
         //debug
         Serial.println("-It1notSem");
     }
-
-    // Serial.println("rsv");
 
     int len = lwip_recvfrom(_sock, _rcv->_payload, UFO_TRSM_BUFFER_SIZE - 1, 0, (struct sockaddr *)&_sourceAddr, &_socklen);
     if (len > 0)

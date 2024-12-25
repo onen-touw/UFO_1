@@ -4,9 +4,17 @@
 #include "../../UFO_Driver/UFO_I2C_Interface.h"
 
 
-#define UFO_INA219_ADDRESS 0x40
+#define UFO_INA219_ADDRESS 0x40 //default
 
+struct UFO_DataINA219
+{
+    float _current =0.f;
+    float _busVolt =0.f;
+    float _shuntVolt =0.f;
+    float _power = 0.f;
 
+    uint32_t _timestamp = 0;
+};
 
 class UFO_INA219 : private UFO_I2C_Interface
 {
@@ -69,10 +77,13 @@ private:
     INA219_VRange _busVoltRange;
 
 
+    UFO_DataINA219 _data;
+    uint16_t _shuntRes = 100;   //mohm
+    // float _shuntRes = 0.100f;    //ohm
 public:
-    UFO_INA219(UFO_I2C_Driver* driver) {
+    UFO_INA219(UFO_I2C_Driver* driver, uint8_t addr = 0x40) {
 
-        esp_err_t err = this->Init(UFO_INA219_ADDRESS, driver);
+        esp_err_t err = this->Init(addr, driver);
         if (err != ESP_OK)
         {
             // SetCritical;      //think about it
@@ -85,19 +96,20 @@ public:
         // check if sensor, i.e. the chip ID is correct
         // int32_t _sensorID = this->Read8(BME280_REGISTER_CHIPID);
         // Serial.println(_sensorID);
-        // if (_sensorID != 0x60){
-        //     return false;
-        // }
+        // // if (_sensorID != 0x60){
+        // //     return false;
+        // // }
+        __Reset();
 
         //default
-        SetConfig(
-            INA_MODE_SANDBVOLT_CONTINUOUS,
-            INA_SHUNT_ADC_RESOLUT_12BIT,
-            INA_SHUNT_ADC_RESOLUT_12BIT,
-            INA_GAIN_8_320MV,
-            INA_BUSBOLT_RANGE_32V
-            );
-        Calibrate32v1A();
+        // SetConfig(
+        //     INA_MODE_SANDBVOLT_CONTINUOUS,
+        //     INA_SHUNT_ADC_RESOLUT_12BIT,
+        //     INA_SHUNT_ADC_RESOLUT_12BIT,
+        //     INA_GAIN_8_320MV,
+        //     INA_BUSBOLT_RANGE_32V
+        //     );
+        // Calibrate32v1A();
 
     }
     
@@ -115,16 +127,38 @@ public:
         res |= (_shuntADC << 3);
         res |= _mode;
         this->Write(INA_REG_CONFIG, res, 2, BIT_ORDER_MSB);
+        return 0;
+    }
+
+
+    void Update(){
+        //  _data._shuntVolt = __GetShuntVoltage();
+        // Serial.print("shunt_mV = ");
+        // Serial.println(shunt_uV);
+        // _data._shuntVolt = shunt_uV;
+        _data._busVolt = __GetVoltage() / 1000.f;
+        // _data._current = shunt_uV / _shuntRes /*  / 1000.f *1000.f  */;
+        this->Write16(INA_REG_CALIB, 4096);
+        int16_t cur = this->Read16(INA_REG_CURRENT);
+        _data._timestamp = millis();
+        if (cur == 65530)
+        {
+            return;
+        }
+        _data._current = cur / 10.f;
+    }
+    const UFO_DataINA219& Get() const
+    {
+        return _data;
     }
 
     void Calibrate32v1A(){
         uint32_t ina219_calValue = 10240;
 
-        ina219_currentDivider_mA = 25;    // Current LSB = 40uA per bit (1000/40 = 25)
-        ina219_powerMultiplier_mW = 0.8f; // Power LSB = 800uW per bit
+        // ina219_currentDivider_mA = 25;    // Current LSB = 40uA per bit (1000/40 = 25)
+        // ina219_powerMultiplier_mW = 0.8f; // Power LSB = 800uW per bit
 
-        this->Write(INA_REG_CALIB, ina219_calValue, 2, BIT_ORDER_MSB);
-        
+        // this->Write(INA_REG_CALIB, ina219_calValue, 2, BIT_ORDER_MSB);
     }
 
     // void Calibrate(float vShuntMax, float rShunt, float expectedCurrentMax){
@@ -176,7 +210,33 @@ public:
 
 
 private:
+
+     int32_t __GetShuntVoltage()
+    {
+        uint16_t val_raw = 0;
+        int32_t result;
+        val_raw = this->Read16(INA_REG_SHUNTVOLT);
+        // Serial.print("__GetShuntVoltage raw: ");
+        // Serial.println(val_raw);
+        result = (static_cast<int32_t>(val_raw) >> 3) * 10;   //10 is LSB see DS
+        return result;
+    }
+        
+    float __GetVoltage()
+    {
+        float v = 0.f;
+        uint16_t vRaw = 0;
+        //todo
+        vRaw = this->Read16(INA_REG_BUSVOLT);
+        // Serial.print("__GetVoltage raw: ");
+        // Serial.println(vRaw);
+        v = (static_cast<int32_t>(vRaw) >> 3) * 4; // 10 is LSB
+        return v;
+    }
+
+
     void __Reset(){
+        this->Write16(INA_REG_CONFIG, 1 << 15);
     }
     
 };

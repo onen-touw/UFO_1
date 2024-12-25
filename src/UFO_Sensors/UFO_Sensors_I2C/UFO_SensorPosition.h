@@ -1,6 +1,6 @@
 #include "UFO_Config.h" 
 
-enum UFO_SensorPosition :uint8_t{
+enum class UFO_SensorPosition :uint8_t{
     IMU_DIR_BASIC = 0,
     IMU_DIR_Z_ROT_90,               // axis: z ... direction: counterclockwise
     IMU_DIR_Z_ROT_180,              // axis: z ... direction: counterclockwise

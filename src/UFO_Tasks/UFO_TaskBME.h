@@ -1,6 +1,6 @@
 #pragma once
 
-#include "UFO_DataStorage.h"
+#include "UFO_StructDefinition.h"
 #include "UFO_TaskMinimal.h"
 
 #define PRESSURE_SEALEVELHPA (1013.25F) /**< Average sea level pressure is 1013.25 hPa */

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "UFO_DataStorage.h"
+#include "UFO_StructDefinition.h"
 #include "UFO_TaskMinimal.h"
 // #include "FastIMU.h"
 #include "../UFO_math/Madgwick.h"

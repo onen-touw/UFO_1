@@ -21,3 +21,5 @@ int64_t UFO_CoreTimeMicro(){
 int64_t UFO_CoreTimeMilli(){
     return static_cast<int64_t> (esp_timer_get_time()/1000ULL);
 }
+
+#define UFO_SetBit(b)   (1 << b)

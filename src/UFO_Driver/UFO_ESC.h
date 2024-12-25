@@ -29,8 +29,6 @@ public:
         _channel = static_cast<ledc_channel_t>(escID);
         _pin = pin;
 
-        pinMode(_pin, OUTPUT);
-
         gpio_config_t conf = {
             .pin_bit_mask = (1ULL << pin),
             .mode = GPIO_MODE_DISABLE,
@@ -93,7 +91,7 @@ public:
         }
     }
 
-    uint16_t GetDuty()
+    uint16_t GetDuty() const
     {
         return _duty;
     }

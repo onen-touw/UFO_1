@@ -5,7 +5,8 @@
 #include "../../UFO_math/UFO_MathUtils.h"
 
 #define UFO_IMU_ENABLE_TEMRETURE_MODULE     UFO_DISABLE 
-#define UFO_IMU_CASTOM_POSITION             UFO_DISABLE
+#define UFO_IMU_CASTOM_POSITION             UFO_ENABLE
+// #define UFO_IMU_CASTOM_POSITION             UFO_DISABLE
 #define UFO_IMU_ADVANCED_CALIBRATION        UFO_DISABLE /*UFO_ENABLE */ 
 
 #if UFO_IMU_CASTOM_POSITION // see /docks/imu_directions.png
@@ -72,7 +73,7 @@
 
 #define UFO_MPU6050_ADDRESS ((uint8_t)0x68)
 
-enum UFO_IMU_AccelRange : uint8_t
+enum class UFO_IMU_AccelRange : uint8_t
 {
     IMU_ACCEL_RANGE_2G = 0,
     IMU_ACCEL_RANGE_4G,
@@ -81,7 +82,7 @@ enum UFO_IMU_AccelRange : uint8_t
     IMU_ACCEL_DEFAULT_G =IMU_ACCEL_RANGE_16G 
 };
 
-enum UFO_IMU_GyroRange : uint8_t
+enum class UFO_IMU_GyroRange : uint8_t
 {
     IMU_GYRO_DEFAULT_250_DPS= 0,
     IMU_GYRO_DEFAULT_500_DPS,
@@ -114,7 +115,7 @@ private:
     UFO_IMU_CalibrationData _calibration;
     UFO_IMU_Data _data;
     #if UFO_IMU_CASTOM_POSITION
-    UFO_SensorPosition _position = IMU_DIR_BASIC;
+    UFO_SensorPosition _position = UFO_SensorPosition::IMU_DIR_BASIC;
     #endif
 
 public:
@@ -206,13 +207,13 @@ public:
 
     void SetAccelRange(UFO_IMU_AccelRange range)
     {
-        _accelRange = static_cast<float>(0b10 << range) / 32768.f;
+        _accelRange = static_cast<float>(0b10 << static_cast<uint8_t>(range)) / 32768.f;
         this->Write8(MPU6050_ACCEL_CONFIG, static_cast<uint8_t>(range) << 3);
     }
 
     void SetGyroRange(UFO_IMU_GyroRange range)
     {
-        _gyroRange = static_cast<float>(0b1 << range * 25 * 10);
+        _gyroRange = static_cast<float>(0b1 << static_cast<uint8_t>(range) * 25 * 10);
         this->Write8(MPU6050_GYRO_CONFIG, static_cast<uint8_t>(range) << 3); // Write new GYRO_CONFIG register value
     }
 
@@ -315,10 +316,10 @@ public:
 
 #if UFO_IMU_CASTOM_POSITION
     switch (_position) {
-	case 0:
-	case 1:
-	case 2:
-	case 3:
+	case UFO_SensorPosition::IMU_DIR_BASIC:
+	case UFO_SensorPosition::IMU_DIR_Z_ROT_90:
+	case UFO_SensorPosition::IMU_DIR_Z_ROT_180:
+	case UFO_SensorPosition::IMU_DIR_Z_ROT_270:
 		if (accel_bias[2] > 0L) {
 			accel_bias[2] -= (int32_t)accelsensitivity; // Remove gravity from the z-axis accelerometer bias calculation
 		}
@@ -326,8 +327,8 @@ public:
 			accel_bias[2] += (int32_t)accelsensitivity;
 		}
 		break;
-	case 4:
-	case 6:
+	case UFO_SensorPosition::IMU_DIR_Y_ROT90_Z_ROT180:
+	case UFO_SensorPosition::IMU_DIR_Y_ROT90:
 		if (accel_bias[0] > 0L) {
 			accel_bias[0] -= (int32_t)accelsensitivity; // Remove gravity from the z-axis accelerometer bias calculation
 		}
@@ -335,8 +336,8 @@ public:
 			accel_bias[0] += (int32_t)accelsensitivity;
 		}
 		break;
-	case 5:
-	case 7:
+	case UFO_SensorPosition::IMU_DIR_Y_ROT90_Z_ROT90:
+	case UFO_SensorPosition::IMU_DIR_Y_ROT90_Z_ROT270:
 		if (accel_bias[1] > 0L) {
 			accel_bias[1] -= (int32_t)accelsensitivity; // Remove gravity from the z-axis accelerometer bias calculation
 		}
@@ -403,7 +404,7 @@ private:
 
         switch (_position)
         {
-        case IMU_DIR_BASIC:
+        case UFO_SensorPosition::IMU_DIR_BASIC:
             _data._accel._x = ax;
             _data._accel._y = ay;
             _data._accel._z = az;
@@ -411,7 +412,7 @@ private:
             _data._gyro._y = gy;
             _data._gyro._z = gz;
             break;
-        case IMU_DIR_Z_ROT_90:
+        case UFO_SensorPosition::IMU_DIR_Z_ROT_90:
             _data._accel._x = -ay;
             _data._accel._y = ax;
             _data._accel._z = az;
@@ -419,7 +420,7 @@ private:
             _data._gyro._y = gx;
             _data._gyro._z = gz;
             break;
-        case IMU_DIR_Z_ROT_180:
+        case UFO_SensorPosition::IMU_DIR_Z_ROT_180:
             _data._accel._x = -ax;
             _data._accel._y = -ay;
             _data._accel._z = az;
@@ -427,7 +428,7 @@ private:
             _data._gyro._y = -gy;
             _data._gyro._z = gz;
             break;
-        case IMU_DIR_Z_ROT_270:
+        case UFO_SensorPosition::IMU_DIR_Z_ROT_270:
             _data._accel._x = ay;
             _data._accel._y = -ax;
             _data._accel._z = az;
@@ -435,7 +436,7 @@ private:
             _data._gyro._y = -gx;
             _data._gyro._z = gz;
             break;
-        case IMU_DIR_Y_ROT90_Z_ROT180:
+        case UFO_SensorPosition::IMU_DIR_Y_ROT90_Z_ROT180:
             _data._accel._x = -az;
             _data._accel._y = -ay;
             _data._accel._z = -ax;
@@ -443,7 +444,7 @@ private:
             _data._gyro._y = -gy;
             _data._gyro._z = -gx;
             break;
-        case IMU_DIR_Y_ROT90_Z_ROT90:
+        case UFO_SensorPosition::IMU_DIR_Y_ROT90_Z_ROT90:
             _data._accel._x = -az;
             _data._accel._y = ax;
             _data._accel._z = -ay;
@@ -451,7 +452,7 @@ private:
             _data._gyro._y = gx;
             _data._gyro._z = -gy;
             break;
-        case IMU_DIR_Y_ROT90:
+        case UFO_SensorPosition::IMU_DIR_Y_ROT90:
             _data._accel._x = -az;
             _data._accel._y = ay;
             _data._accel._z = ax;
@@ -459,7 +460,7 @@ private:
             _data._gyro._y = gy;
             _data._gyro._z = gx;
             break;
-        case IMU_DIR_Y_ROT90_Z_ROT270:
+        case UFO_SensorPosition::IMU_DIR_Y_ROT90_Z_ROT270:
             _data._accel._x = -az;
             _data._accel._y = -ax;
             _data._accel._z = ay;
